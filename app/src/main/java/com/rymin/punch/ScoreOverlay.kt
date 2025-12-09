@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import com.rymin.punch.data.LeaderboardRepository
 import kotlin.math.ln
 
@@ -44,6 +45,7 @@ enum class ScoreDisplayPhase {
 @Composable
 fun ScoreOverlay(
     score: Double,
+    weaponType: String = "BOXING_GLOVE",
     onRestart: () -> Unit,
     onLeaderboardUpdated: () -> Unit = {}
 ) {
@@ -128,7 +130,7 @@ fun ScoreOverlay(
                     onNameChange = { playerName = it },
                     onSubmit = {
                         if (playerName.isNotBlank()) {
-                            leaderboardRepo.addEntry(playerName, score)
+                            leaderboardRepo.addEntry(playerName, score, weaponType)
                             onLeaderboardUpdated()
                             phase = ScoreDisplayPhase.READY_TO_RESTART
                         }
@@ -144,6 +146,11 @@ fun ScoreOverlay(
                     score = score,
                     blinkAlpha = blinkAlpha,
                     onRestart = onRestart,
+                    onResetLeaderboard = {
+                        Log.d("ScoreOverlay", "Reset leaderboard triggered!")
+                        leaderboardRepo.clearLeaderboard()
+                        onLeaderboardUpdated()
+                    },
                     animatedScale = animatedScale.value
                 )
             }
@@ -406,37 +413,126 @@ private fun LetterPadButton(
     }
 }
 
+// Hidden reset sequence: TITLE -> SCORE -> TITLE -> TITLE -> RETRY (each within 500ms)
+private enum class ResetStep {
+    NONE,           // Initial state
+    TITLE_1,        // First title tap
+    SCORE_TAP,      // Score tap after title
+    TITLE_2,        // Second title tap
+    TITLE_3,        // Third title tap
+    READY_TO_RESET  // Ready - next RETRY will reset
+}
+
 @Composable
 private fun ReadyToRestartContent(
     score: Double,
     blinkAlpha: Float,
     onRestart: () -> Unit,
+    onResetLeaderboard: () -> Unit,
     animatedScale: Float
 ) {
+    var resetStep by remember { mutableStateOf(ResetStep.NONE) }
+    var lastTapTime by remember { mutableStateOf(0L) }
+    val resetTimeout = 500L
+
+    // Helper to check if tap is within timeout
+    fun isWithinTimeout(): Boolean {
+        return System.currentTimeMillis() - lastTapTime <= resetTimeout
+    }
+
+    // Helper to update tap time
+    fun updateTapTime() {
+        lastTapTime = System.currentTimeMillis()
+    }
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp),
         modifier = Modifier.scale(animatedScale)
     ) {
+        // Score Title - tappable for reset sequence
         Text(
             text = "💥 SCORE 💥",
             fontSize = 48.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFf39c12)
+            color = if (resetStep == ResetStep.READY_TO_RESET) Color.Red else Color(0xFFf39c12),
+            modifier = Modifier.pointerInput(Unit) {
+                detectTapGestures {
+                    when (resetStep) {
+                        ResetStep.NONE -> {
+                            resetStep = ResetStep.TITLE_1
+                            updateTapTime()
+                        }
+                        ResetStep.SCORE_TAP -> {
+                            if (isWithinTimeout()) {
+                                resetStep = ResetStep.TITLE_2
+                                updateTapTime()
+                            } else {
+                                resetStep = ResetStep.NONE
+                            }
+                        }
+                        ResetStep.TITLE_2 -> {
+                            if (isWithinTimeout()) {
+                                resetStep = ResetStep.TITLE_3
+                                updateTapTime()
+                            } else {
+                                resetStep = ResetStep.NONE
+                            }
+                        }
+                        ResetStep.TITLE_3 -> {
+                            if (isWithinTimeout()) {
+                                resetStep = ResetStep.READY_TO_RESET
+                                updateTapTime()
+                            } else {
+                                resetStep = ResetStep.NONE
+                            }
+                        }
+                        else -> {
+                            resetStep = ResetStep.NONE
+                        }
+                    }
+                }
+            }
         )
 
+        // Score display - tappable for reset sequence
         Text(
             text = formatScore(score),
             fontSize = 120.sp,
             fontWeight = FontWeight.Black,
-            color = Color.White
+            color = Color.White,
+            modifier = Modifier.pointerInput(Unit) {
+                detectTapGestures {
+                    when (resetStep) {
+                        ResetStep.TITLE_1 -> {
+                            if (isWithinTimeout()) {
+                                resetStep = ResetStep.SCORE_TAP
+                                updateTapTime()
+                            } else {
+                                resetStep = ResetStep.NONE
+                            }
+                        }
+                        else -> {
+                            resetStep = ResetStep.NONE
+                        }
+                    }
+                }
+            }
         )
 
         // Retry button
         Button(
-            onClick = onRestart,
+            onClick = {
+                Log.d("ScoreOverlay", "Button clicked! resetStep=$resetStep")
+                if (resetStep == ResetStep.READY_TO_RESET) {
+                    // Reset leaderboard and restart (no timeout check for final step)
+                    Log.d("ScoreOverlay", "Calling onResetLeaderboard!")
+                    onResetLeaderboard()
+                }
+                onRestart()
+            },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF27ae60)
+                containerColor = if (resetStep == ResetStep.READY_TO_RESET) Color.Red else Color(0xFF27ae60)
             ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier
@@ -445,7 +541,7 @@ private fun ReadyToRestartContent(
                 .width(280.dp)
         ) {
             Text(
-                text = "🔄 RETRY",
+                text = if (resetStep == ResetStep.READY_TO_RESET) "🗑️ RESET" else "🔄 RETRY",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
