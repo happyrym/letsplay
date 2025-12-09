@@ -174,99 +174,19 @@ fun DartGameScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1a1a2e))
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top bar - Timer, Score, Darts remaining
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Timer
-                Text(
-                    text = if (gamePhase == DartGamePhase.READY) "🎯" else "⏱ ${timeRemaining}s",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (timeRemaining <= 3 && gamePhase == DartGamePhase.PLAYING)
-                        Color.Red else Color(0xFFf39c12)
-                )
-
-                // Score
-                Text(
-                    text = "$totalScore",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFf39c12)
-                )
-
-                // Darts remaining
-                Row {
-                    repeat(3) { index ->
-                        Text(
-                            text = if (index < 3 - dartsThrown) "🎯" else "⚫",
-                            fontSize = 20.sp,
-                            modifier = Modifier.padding(horizontal = 2.dp)
+            .pointerInput(gamePhase, timeRemaining, dartsThrown) {
+                when (gamePhase) {
+                    DartGamePhase.READY -> {
+                        detectDragGestures(
+                            onDragStart = {
+                                gamePhase = DartGamePhase.PLAYING
+                            },
+                            onDrag = { _, _ -> },
+                            onDragEnd = {}
                         )
                     }
-                }
-            }
-
-            // Score popup
-            Box(
-                modifier = Modifier
-                    .height(60.dp)
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                if (showScorePopup && lastScore != null) {
-                    Text(
-                        text = "${lastScore!!.description} (+${lastScore!!.totalPoints})",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when {
-                            lastScore!!.multiplier == 3 -> Color(0xFFFFD700)
-                            lastScore!!.multiplier == 2 -> Color(0xFF27ae60)
-                            lastScore!!.totalPoints >= 50 -> Color(0xFFe74c3c)
-                            lastScore!!.totalPoints == 0 -> Color.Gray
-                            else -> Color.White
-                        }
-                    )
-                }
-            }
-
-            // Dart board area (top half)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                RealDartBoard(
-                    thrownDarts = thrownDarts,
-                    dartProgress = if (gamePhase == DartGamePhase.THROWING) dartProgress else null,
-                    dartScale = dartScale,
-                    landingX = landingX,
-                    landingY = landingY,
-                    modifier = Modifier
-                        .fillMaxWidth(0.95f)
-                        .aspectRatio(1f)
-                )
-            }
-
-            // Swipe area (bottom half)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .background(Color(0xFF16213e))
-                    .pointerInput(gamePhase, timeRemaining, dartsThrown) {
-                        if (gamePhase == DartGamePhase.PLAYING && timeRemaining > 0 && dartsThrown < 3) {
+                    DartGamePhase.PLAYING -> {
+                        if (timeRemaining > 0 && dartsThrown < 3) {
                             detectDragGestures(
                                 onDragStart = { offset ->
                                     swipeStart = offset
@@ -308,96 +228,147 @@ fun DartGameScreen(
                                 }
                             )
                         }
-                    },
+                    }
+                    else -> { }
+                }
+            }
+    ) {
+        // Full screen dart board
+        RealDartBoard(
+            thrownDarts = thrownDarts,
+            dartProgress = if (gamePhase == DartGamePhase.THROWING) dartProgress else null,
+            dartScale = dartScale,
+            landingX = landingX,
+            landingY = landingY,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Swipe visualization overlay
+        val start = swipeStart
+        val current = currentSwipe
+        if (start != null && current != null && gamePhase == DartGamePhase.PLAYING) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Draw swipe trail
+                drawLine(
+                    color = Color(0xFFf39c12),
+                    start = start,
+                    end = current,
+                    strokeWidth = 8f
+                )
+                drawCircle(
+                    color = Color(0xFFe74c3c),
+                    radius = 20f,
+                    center = current
+                )
+            }
+        }
+
+        // Top bar - Timer, Score, Darts remaining
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Timer
+            Text(
+                text = if (gamePhase == DartGamePhase.READY) "🎯" else "⏱ ${timeRemaining}s",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (timeRemaining <= 3 && gamePhase != DartGamePhase.READY)
+                    Color.Red else Color(0xFFf39c12)
+            )
+
+            // Score
+            Text(
+                text = "$totalScore",
+                fontSize = 36.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFf39c12)
+            )
+
+            // Darts remaining
+            Row {
+                repeat(3) { index ->
+                    Text(
+                        text = if (index < 3 - dartsThrown) "🎯" else "⚫",
+                        fontSize = 20.sp,
+                        modifier = Modifier.padding(horizontal = 2.dp)
+                    )
+                }
+            }
+        }
+
+        // Score popup (center top)
+        if (showScorePopup && lastScore != null) {
+            Text(
+                text = "${lastScore!!.description}\n+${lastScore!!.totalPoints}",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = when {
+                    lastScore!!.multiplier == 3 -> Color(0xFFFFD700)
+                    lastScore!!.multiplier == 2 -> Color(0xFF27ae60)
+                    lastScore!!.totalPoints >= 50 -> Color(0xFFe74c3c)
+                    lastScore!!.totalPoints == 0 -> Color.Gray
+                    else -> Color.White
+                },
+                textAlign = TextAlign.Center,
+                lineHeight = 36.sp,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 80.dp)
+            )
+        }
+
+        // Bottom swipe hint overlay
+        if (gamePhase == DartGamePhase.PLAYING && swipeStart == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(Color.Black.copy(alpha = 0.3f)),
                 contentAlignment = Alignment.Center
             ) {
-                // Swipe visualization
-                val start = swipeStart
-                val current = currentSwipe
+                Text(
+                    text = "⬆️ SWIPE UP TO THROW",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+            }
+        }
 
-                if (start != null && current != null && gamePhase == DartGamePhase.PLAYING) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        // Draw swipe trail
-                        drawLine(
-                            color = Color(0xFFf39c12),
-                            start = start,
-                            end = current,
-                            strokeWidth = 8f
-                        )
-
-                        // Draw arrow at end
-                        val dx = current.x - start.x
-                        val dy = current.y - start.y
-                        val angle = atan2(dy, dx)
-
-                        drawCircle(
-                            color = Color(0xFFe74c3c),
-                            radius = 20f,
-                            center = current
-                        )
-                    }
-                }
-
-                // Instructions
+        // Ready screen overlay
+        if (gamePhase == DartGamePhase.READY) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    when (gamePhase) {
-                        DartGamePhase.READY -> {
-                            Text(
-                                text = "👆 TAP TO START",
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFf39c12)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Swipe up to throw darts!\n10 seconds, 3 darts",
-                                fontSize = 18.sp,
-                                color = Color.White.copy(alpha = 0.7f),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                        DartGamePhase.PLAYING -> {
-                            if (swipeStart == null) {
-                                Text(
-                                    text = "⬆️ SWIPE UP TO THROW",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.8f)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Speed = Power, Angle = Direction",
-                                    fontSize = 14.sp,
-                                    color = Color.White.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
-                        DartGamePhase.THROWING -> {
-                            // Show nothing during throw
-                        }
-                        DartGamePhase.RESULT -> {
-                            // Handled by overlay
-                        }
-                    }
-                }
-
-                // Tap to start
-                if (gamePhase == DartGamePhase.READY) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = {
-                                        gamePhase = DartGamePhase.PLAYING
-                                    },
-                                    onDrag = { _, _ -> },
-                                    onDragEnd = {}
-                                )
-                            }
+                    Text(
+                        text = "👆 TAP TO START",
+                        fontSize = 36.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFf39c12)
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "⬆️ Swipe up to throw darts!",
+                        fontSize = 20.sp,
+                        color = Color.White.copy(alpha = 0.8f)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "10 seconds, 3 darts",
+                        fontSize = 18.sp,
+                        color = Color.White.copy(alpha = 0.6f)
                     )
                 }
             }
@@ -434,8 +405,9 @@ fun RealDartBoard(
 ) {
     Canvas(modifier = modifier) {
         val centerX = size.width / 2
-        val centerY = size.height / 2
-        val boardRadius = minOf(size.width, size.height) / 2 * 0.92f
+        // Position dartboard in upper portion of screen
+        val centerY = size.height * 0.35f
+        val boardRadius = minOf(size.width, size.height * 0.6f) / 2 * 0.85f
 
         // Radius ratios
         val doubleOuterR = boardRadius
@@ -572,17 +544,18 @@ fun RealDartBoard(
             drawLandedDart(this, dartX, dartY)
         }
 
-        // Flying dart
+        // Flying dart - starts from bottom of screen
         if (dartProgress != null && dartProgress < 1f) {
             val startX = centerX
-            val startY = size.height * 1.5f
+            val startY = size.height + 100f  // Start below screen
             val targetX = centerX + landingX * boardRadius
             val targetY = centerY + landingY * boardRadius
 
             val easedProgress = 1f - (1f - dartProgress).pow(3)
             val currentX = startX + (targetX - startX) * easedProgress
 
-            val arcHeight = size.height * 0.15f * dartScale
+            // Parabolic arc - dart goes up then comes down to target
+            val arcHeight = size.height * 0.1f
             val parabola = -4 * arcHeight * dartProgress * (dartProgress - 1f)
             val linearY = startY + (targetY - startY) * easedProgress
             val currentY = linearY - parabola
