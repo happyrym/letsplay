@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Wrist part -->
+    <path
+        android:fillColor="#B71C1C"
+        android:pathData="M60,120 L60,160 Q60,170 70,170 L130,170 Q140,170 140,160 L140,120 Z"/>
+
+    <!-- Main glove body -->
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M50,60 Q30,60 30,80 L30,110 Q30,130 50,130 L150,130 Q170,130 170,110 L170,80 Q170,60 150,60 L120,60 L120,40 Q120,30 110,30 L90,30 Q80,30 80,40 L80,60 Z"/>
+
+    <!-- Thumb -->
+    <path
+        android:fillColor="#C62828"
+        android:pathData="M50,70 Q35,70 30,85 L30,95 Q30,105 40,105 L55,105 L55,70 Z"/>
+
+    <!-- Glove details/stitching -->
+    <path
+        android:strokeColor="#B71C1C"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M70,60 L70,120 M90,60 L90,120 M110,60 L110,120 M130,60 L130,120"/>
+
+    <!-- Highlights -->
+    <path
+        android:fillColor="#FF5252"
+        android:pathData="M60,70 Q50,70 50,80 L50,85 Q50,75 60,75 L140,75 Q150,75 150,85 L150,80 Q150,70 140,70 Z"/>
+</vector>
