@@ -322,24 +322,6 @@ fun DartGameScreen(
             )
         }
 
-        // Bottom swipe hint overlay
-        if (gamePhase == DartGamePhase.PLAYING && swipeStart == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "⬆️ SWIPE UP TO THROW",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.8f)
-                )
-            }
-        }
 
         // Ready screen overlay
         if (gamePhase == DartGamePhase.READY) {
