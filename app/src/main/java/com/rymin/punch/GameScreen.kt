@@ -98,6 +98,12 @@ fun PlayScreen(
     ) {
         val screenWidth = constraints.maxWidth.toFloat()
         val screenHeight = constraints.maxHeight.toFloat()
+        
+        // Hammer base position (center of left half)
+        val hammerBaseX = screenWidth * 0.25f
+        val hammerBaseY = screenHeight * 0.5f
+        val hammerWidth = 200f
+        val hammerHeight = 300f
 
         // Draw particles (Unity-style with size variation and fade)
         particles.forEach { particle ->
@@ -239,18 +245,19 @@ fun PlayScreen(
                                         shakeIntensity = (currentDragSpeed / 50f).coerceIn(0f, 1f)
                                         onDragUpdate(currentDragSpeed)
 
-                                        // Create trail particles
+                                        // Create trail particles at screen center
                                         if (currentDragSpeed > 5f) {
-                                            val hammerHeadX = gloveOffset.x + 400f
-                                            val hammerHeadY = gloveOffset.y + 300f
+                                            // Trail at center of screen
+                                            val trailX = screenWidth * 0.5f + gloveOffset.x * 0.3f
+                                            val trailY = screenHeight * 0.5f + gloveOffset.y * 0.3f
 
-                                            val newParticles = (0..1).map {
+                                            val newParticles = (0..2).map {
                                                 Particle(
                                                     id = Random.nextInt(),
-                                                    startX = hammerHeadX,
-                                                    startY = hammerHeadY,
-                                                    velocityX = -dragAmount.x * 2f,
-                                                    velocityY = -dragAmount.y * 2f,
+                                                    startX = trailX + Random.nextFloat() * 30f - 15f,
+                                                    startY = trailY + Random.nextFloat() * 30f - 15f,
+                                                    velocityX = -dragAmount.x * 1.5f + Random.nextFloat() * 60f - 30f,
+                                                    velocityY = -dragAmount.y * 1.5f + Random.nextFloat() * 60f - 30f,
                                                     color = Color(0xFFf39c12),
                                                     createdAt = System.currentTimeMillis()
                                                 )
@@ -282,42 +289,57 @@ fun PlayScreen(
                                             val accuracy = 1f - (abs(gloveOffset.y) / maxYOffset).coerceIn(0f, 1f)
 
                                             // Create massive impact explosion particles (Unity style)
-                                            // Impact at hammer head position
-                                            val impactX = gloveOffset.x + 400f
-                                            val impactY = gloveOffset.y + 300f // Hammer head
+                                            // Impact at punch machine target (right side of screen)
+                                            val impactX = screenWidth * 0.75f
+                                            val impactY = screenHeight * 0.5f
 
-                                            val impactParticles = (0..50).map { i ->
-                                                val angle = (i * 360.0 / 50.0) * Math.PI / 180.0
-                                                val speed = Random.nextFloat() * 300f + 100f
+                                            // Primary explosion - 80 particles
+                                            val impactParticles = (0..80).map { i ->
+                                                val angle = (i * 360.0 / 80.0) * Math.PI / 180.0
+                                                val speed = Random.nextFloat() * 400f + 150f
                                                 Particle(
                                                     id = Random.nextInt(),
-                                                    startX = impactX,
-                                                    startY = impactY,
+                                                    startX = impactX + Random.nextFloat() * 40f - 20f,
+                                                    startY = impactY + Random.nextFloat() * 40f - 20f,
                                                     velocityX = (Math.cos(angle) * speed).toFloat(),
                                                     velocityY = (Math.sin(angle) * speed).toFloat(),
                                                     color = when {
-                                                        i % 3 == 0 -> Color(0xFFff6b6b)
-                                                        i % 3 == 1 -> Color(0xFFfeca57)
+                                                        i % 4 == 0 -> Color(0xFFff6b6b) // Red
+                                                        i % 4 == 1 -> Color(0xFFfeca57) // Yellow
+                                                        i % 4 == 2 -> Color(0xFFf39c12) // Orange
                                                         else -> Color.White
                                                     },
                                                     createdAt = System.currentTimeMillis()
                                                 )
                                             }
 
-                                            // Add secondary wave
-                                            val secondaryParticles = (0..30).map {
+                                            // Secondary wave - 50 particles
+                                            val secondaryParticles = (0..50).map {
                                                 Particle(
                                                     id = Random.nextInt(),
                                                     startX = impactX,
                                                     startY = impactY,
-                                                    velocityX = Random.nextFloat() * 400f - 200f,
-                                                    velocityY = Random.nextFloat() * 400f - 200f,
+                                                    velocityX = Random.nextFloat() * 600f - 300f,
+                                                    velocityY = Random.nextFloat() * 600f - 300f,
                                                     color = Color(0xFFff9ff3),
-                                                    createdAt = System.currentTimeMillis() + 50
+                                                    createdAt = System.currentTimeMillis() + 30
                                                 )
                                             }
 
-                                            particles = particles + impactParticles + secondaryParticles
+                                            // Third wave - sparkles going up
+                                            val sparkleParticles = (0..30).map {
+                                                Particle(
+                                                    id = Random.nextInt(),
+                                                    startX = impactX + Random.nextFloat() * 100f - 50f,
+                                                    startY = impactY,
+                                                    velocityX = Random.nextFloat() * 100f - 50f,
+                                                    velocityY = -Random.nextFloat() * 500f - 200f, // Going up
+                                                    color = Color(0xFFFFD700), // Gold
+                                                    createdAt = System.currentTimeMillis() + 60
+                                                )
+                                            }
+
+                                            particles = particles + impactParticles + secondaryParticles + sparkleParticles
 
                                             onPunchHit(accuracy, dragSpeed)
                                         }
