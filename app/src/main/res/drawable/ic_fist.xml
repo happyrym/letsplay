@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Fist main body (skin tone) -->
+    <path
+        android:fillColor="#F5CBA7"
+        android:pathData="M45,50 Q30,60 30,90 L30,140 Q30,160 50,165 L140,165 Q160,160 165,140 L165,70 Q165,45 140,40 L70,40 Q50,42 45,50 Z" />
+    
+    <!-- Fist shadow -->
+    <path
+        android:fillColor="#E5B898"
+        android:pathData="M50,55 Q40,65 40,90 L40,135 Q40,150 55,155 L135,155 Q150,150 155,135 L155,75 Q155,55 135,50 L75,50 Q55,52 50,55 Z" />
+    
+    <!-- Finger segments -->
+    <path
+        android:fillColor="#FDEBD0"
+        android:pathData="M55,60 L55,90 Q55,100 65,100 L75,100 Q85,100 85,90 L85,60 Q85,50 75,50 L65,50 Q55,50 55,60 Z" />
+    <path
+        android:fillColor="#FDEBD0"
+        android:pathData="M90,55 L90,95 Q90,105 100,105 L110,105 Q120,105 120,95 L120,55 Q120,45 110,45 L100,45 Q90,45 90,55 Z" />
+    <path
+        android:fillColor="#FDEBD0"
+        android:pathData="M125,60 L125,90 Q125,100 135,100 L145,100 Q155,100 155,90 L155,60 Q155,50 145,50 L135,50 Q125,50 125,60 Z" />
+    
+    <!-- Knuckle highlights -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,70 Q65,65 70,70 Q75,75 70,80 Q65,85 60,80 Q55,75 60,70 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M95,65 Q100,60 105,65 Q110,70 105,75 Q100,80 95,75 Q90,70 95,65 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M130,70 Q135,65 140,70 Q145,75 140,80 Q135,85 130,80 Q125,75 130,70 Z" />
+    
+    <!-- Thumb -->
+    <path
+        android:fillColor="#F5CBA7"
+        android:pathData="M30,100 Q15,110 18,135 Q22,155 40,160 L50,155 Q55,145 50,125 Q45,105 35,100 Z" />
+    
+    <!-- Thumb highlight -->
+    <path
+        android:fillColor="#FDEBD0"
+        android:pathData="M32,110 Q25,118 27,132 Q30,145 40,148 Q45,142 43,128 Q40,115 35,110 Z" />
+    
+    <!-- Wrist -->
+    <path
+        android:fillColor="#E5B898"
+        android:pathData="M50,160 L50,195 Q50,200 60,200 L130,200 Q140,200 140,195 L140,160 Z" />
+    
+    <!-- Finger lines -->
+    <path
+        android:strokeColor="#D4AC8C"
+        android:strokeWidth="2"
+        android:pathData="M70,100 L70,115 M105,105 L105,120 M140,100 L140,115" />
+</vector>
