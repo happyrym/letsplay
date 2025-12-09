@@ -50,7 +50,10 @@ enum class WeaponType(val drawableRes: Int, val displayName: String) {
 }
 
 @Composable
-fun GameScreen(onLeaderboardUpdated: () -> Unit = {}) {
+fun GameScreen(
+    onLeaderboardUpdated: () -> Unit = {},
+    onBack: () -> Unit = {}
+) {
     val viewModel = remember { GameViewModel() }
     val gameState by viewModel.gameState.collectAsState()
 

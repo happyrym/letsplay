@@ -34,6 +34,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".DartGameActivity"
+            android:exported="false"
+            android:label="Dart Game"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Punch" />
     </application>
 
 </manifest>
