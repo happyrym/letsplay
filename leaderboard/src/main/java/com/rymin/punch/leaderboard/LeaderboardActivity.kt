@@ -9,12 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,9 +24,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -39,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 data class LeaderboardEntry(
     val name: String,
     val score: Double,
+    val weaponType: String = "BOXING_GLOVE",
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -51,6 +56,19 @@ data class CelebrationParticle(
     val color: Color,
     val createdAt: Long
 )
+
+// Map weapon type string to drawable resource
+fun getWeaponDrawable(weaponType: String): Int {
+    return when (weaponType) {
+        "BOXING_GLOVE" -> R.drawable.ic_boxing_glove
+        "FIST" -> R.drawable.ic_fist
+        "SANTA_GLOVE" -> R.drawable.ic_santa_glove
+        "REINDEER_HOOF" -> R.drawable.ic_reindeer_hoof
+        "DOG_PAW" -> R.drawable.ic_dog_paw
+        "CAT_PAW" -> R.drawable.ic_cat_paw
+        else -> R.drawable.ic_boxing_glove
+    }
+}
 
 class LeaderboardActivity : ComponentActivity() {
     private lateinit var nearbyClient: NearbyConnectionsClient
@@ -190,8 +208,9 @@ fun LeaderboardScreen(
                 }
                 particles = celebrationParticles
             }
-            previousLeaderboard = leaderboard
         }
+        // Always update previousLeaderboard (including empty list for reset)
+        previousLeaderboard = leaderboard
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -329,7 +348,7 @@ fun LeaderboardItem(
             .fillMaxWidth()
             .scale(scale)
             .background(backgroundColor, shape = MaterialTheme.shapes.medium)
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -339,8 +358,21 @@ fun LeaderboardItem(
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = textColor,
-            modifier = Modifier.width(60.dp)
+            modifier = Modifier.width(50.dp)
         )
+
+        // Weapon icon
+        Image(
+            painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
+            contentDescription = entry.weaponType,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.White.copy(alpha = 0.2f))
+                .padding(4.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
 
         // Name
         Text(
@@ -402,6 +434,17 @@ fun CelebrationOverlay(
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Black,
                 color = Color(0xFFFFD700)
+            )
+
+            // Weapon icon
+            Image(
+                painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
+                contentDescription = entry.weaponType,
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .padding(8.dp)
             )
 
             Text(

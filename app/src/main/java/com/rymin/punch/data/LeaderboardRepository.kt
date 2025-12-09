@@ -2,6 +2,7 @@ package com.rymin.punch.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -10,6 +11,7 @@ class LeaderboardRepository(context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
     companion object {
+        private const val TAG = "LeaderboardRepo"
         private const val KEY_LEADERBOARD = "leaderboard_data"
         private const val MAX_ENTRIES = 10
     }
@@ -40,9 +42,9 @@ class LeaderboardRepository(context: Context) {
      * Add a new entry to the leaderboard
      * Automatically keeps only top 10 scores
      */
-    fun addEntry(name: String, score: Double) {
+    fun addEntry(name: String, score: Double, weaponType: String = "BOXING_GLOVE") {
         val currentLeaderboard = getLeaderboard().toMutableList()
-        currentLeaderboard.add(LeaderboardEntry(name, score))
+        currentLeaderboard.add(LeaderboardEntry(name, score, weaponType))
 
         // Sort by score descending and keep only top 10
         val updatedLeaderboard = currentLeaderboard
@@ -64,6 +66,8 @@ class LeaderboardRepository(context: Context) {
      * Clear all leaderboard data
      */
     fun clearLeaderboard() {
-        prefs.edit().remove(KEY_LEADERBOARD).apply()
+        Log.d(TAG, "Clearing leaderboard...")
+        val result = prefs.edit().remove(KEY_LEADERBOARD).commit()
+        Log.d(TAG, "Leaderboard cleared: $result, remaining entries: ${getLeaderboard().size}")
     }
 }

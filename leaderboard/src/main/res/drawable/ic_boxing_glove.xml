@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+
+    <!-- Boxing Glove Main Body -->
+    <path
+        android:fillColor="#E74C3C"
+        android:pathData="M40,60 Q20,80 25,120 Q30,160 70,170 L140,170 Q180,160 185,120 Q190,80 160,55 Q130,30 100,35 Q60,40 40,60 Z" />
+
+    <!-- Glove highlight -->
+    <path
+        android:fillColor="#EC7063"
+        android:pathData="M50,70 Q35,90 40,115 Q45,140 70,150 L120,150 Q140,145 145,125 Q150,100 140,75 Q125,50 100,50 Q70,50 50,70 Z" />
+
+    <!-- Glove shine -->
+    <path
+        android:fillColor="#F1948A"
+        android:pathData="M60,80 Q50,95 55,110 Q60,120 80,125 Q95,128 100,115 Q105,100 95,85 Q85,70 60,80 Z" />
+
+    <!-- Wrist band -->
+    <path
+        android:fillColor="#2C3E50"
+        android:pathData="M55,165 L55,190 Q55,198 65,198 L135,198 Q145,198 145,190 L145,165 Z" />
+
+    <!-- Wrist band stripe -->
+    <path
+        android:fillColor="#34495E"
+        android:pathData="M55,175 L145,175 L145,185 L55,185 Z" />
+
+    <!-- Thumb -->
+    <path
+        android:fillColor="#C0392B"
+        android:pathData="M25,90 Q10,100 15,120 Q20,140 35,145 Q45,140 45,125 Q45,105 35,95 Q30,90 25,90 Z" />
+
+    <!-- Thumb highlight -->
+    <path
+        android:fillColor="#E74C3C"
+        android:pathData="M28,100 Q20,108 22,120 Q24,130 32,133 Q38,130 38,120 Q38,108 32,102 Q30,100 28,100 Z" />
+
+    <!-- Knuckle lines -->
+    <path
+        android:strokeColor="#C0392B"
+        android:strokeWidth="3"
+        android:pathData="M70,100 Q75,95 80,100" />
+    <path
+        android:strokeColor="#C0392B"
+        android:strokeWidth="3"
+        android:pathData="M95,95 Q100,90 105,95" />
+    <path
+        android:strokeColor="#C0392B"
+        android:strokeWidth="3"
+        android:pathData="M120,100 Q125,95 130,100" />
+
+    <!-- Lacing -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:pathData="M90,50 L90,35 M100,48 L100,33 M110,50 L110,35" />
+</vector>
