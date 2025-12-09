@@ -1,11 +1,17 @@
 package com.rymin.punch.leaderboard
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -27,6 +33,7 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 import kotlin.random.Random
+import androidx.compose.runtime.collectAsState
 
 @Serializable
 data class LeaderboardEntry(
@@ -46,13 +53,71 @@ data class CelebrationParticle(
 )
 
 class LeaderboardActivity : ComponentActivity() {
+    private lateinit var nearbyClient: NearbyConnectionsClient
+
+    private val requestPermissionsLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.all { it.value }) {
+            startNearbyDiscovery()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        nearbyClient = NearbyConnectionsClient(this)
+        requestNearbyPermissions()
+
         setContent {
             LeaderboardTheme {
-                LeaderboardScreen()
+                val leaderboard by nearbyClient.leaderboardFlow.collectAsState()
+                val isConnected by nearbyClient.connectionStatus.collectAsState()
+
+                LeaderboardScreen(
+                    leaderboard = leaderboard,
+                    isConnected = isConnected
+                )
             }
         }
+    }
+
+    private fun requestNearbyPermissions() {
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.NEARBY_WIFI_DEVICES
+            )
+        } else {
+            arrayOf(
+                Manifest.permission.BLUETOOTH,
+                Manifest.permission.BLUETOOTH_ADMIN,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        }
+
+        val permissionsToRequest = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
+        } else {
+            startNearbyDiscovery()
+        }
+    }
+
+    private fun startNearbyDiscovery() {
+        nearbyClient.startDiscovery()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        nearbyClient.disconnect()
     }
 }
 
@@ -69,8 +134,11 @@ fun LeaderboardTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
-fun LeaderboardScreen() {
-    var leaderboard by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
+fun LeaderboardScreen(
+    leaderboard: List<LeaderboardEntry> = emptyList(),
+    isConnected: Boolean = false
+) {
+    var previousLeaderboard by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
     var showCelebration by remember { mutableStateOf(false) }
     var newFirstPlaceEntry by remember { mutableStateOf<LeaderboardEntry?>(null) }
     var particles by remember { mutableStateOf<List<CelebrationParticle>>(emptyList()) }
@@ -84,81 +152,46 @@ fun LeaderboardScreen() {
         }
     }
 
-    // Function to update leaderboard (will be called by P2P connection)
-    fun onLeaderboardUpdate(newLeaderboard: List<LeaderboardEntry>) {
-        val previousFirstPlace = leaderboard.firstOrNull()
-        val newFirstPlace = newLeaderboard.firstOrNull()
+    // Detect new first place when leaderboard updates
+    LaunchedEffect(leaderboard) {
+        if (leaderboard.isNotEmpty()) {
+            val previousFirstPlace = previousLeaderboard.firstOrNull()
+            val newFirstPlace = leaderboard.firstOrNull()
 
-        // Check if there's a new first place
-        if (newFirstPlace != null &&
-            (previousFirstPlace == null ||
-             previousFirstPlace.name != newFirstPlace.name ||
-             previousFirstPlace.score != newFirstPlace.score)) {
-            showCelebration = true
-            newFirstPlaceEntry = newFirstPlace
+            // Check if there's a new first place
+            if (newFirstPlace != null &&
+                (previousFirstPlace == null ||
+                 previousFirstPlace.name != newFirstPlace.name ||
+                 previousFirstPlace.score != newFirstPlace.score)) {
+                showCelebration = true
+                newFirstPlaceEntry = newFirstPlace
 
-            // Create celebration particles
-            val screenWidth = 1080f // Approximate phone width
-            val screenHeight = 1920f // Approximate phone height
+                // Create celebration particles
+                val screenWidth = 1080f
+                val screenHeight = 1920f
 
-            val celebrationParticles = (0..100).map { i ->
-                val angle = (i * 360.0 / 100.0) * Math.PI / 180.0
-                val speed = Random.nextFloat() * 400f + 200f
-                CelebrationParticle(
-                    id = Random.nextInt(),
-                    startX = screenWidth / 2,
-                    startY = screenHeight / 3,
-                    velocityX = (Math.cos(angle) * speed).toFloat(),
-                    velocityY = (Math.sin(angle) * speed).toFloat(),
-                    color = when {
-                        i % 4 == 0 -> Color(0xFFFFD700) // Gold
-                        i % 4 == 1 -> Color(0xFFf39c12) // Orange
-                        i % 4 == 2 -> Color(0xFFff6b6b) // Red
-                        else -> Color(0xFFfeca57) // Yellow
-                    },
-                    createdAt = System.currentTimeMillis()
-                )
+                val celebrationParticles = (0..100).map { i ->
+                    val angle = (i * 360.0 / 100.0) * Math.PI / 180.0
+                    val speed = Random.nextFloat() * 400f + 200f
+                    CelebrationParticle(
+                        id = Random.nextInt(),
+                        startX = screenWidth / 2,
+                        startY = screenHeight / 3,
+                        velocityX = (Math.cos(angle) * speed).toFloat(),
+                        velocityY = (Math.sin(angle) * speed).toFloat(),
+                        color = when {
+                            i % 4 == 0 -> Color(0xFFFFD700)
+                            i % 4 == 1 -> Color(0xFFf39c12)
+                            i % 4 == 2 -> Color(0xFFff6b6b)
+                            else -> Color(0xFFfeca57)
+                        },
+                        createdAt = System.currentTimeMillis()
+                    )
+                }
+                particles = celebrationParticles
             }
-            particles = celebrationParticles
+            previousLeaderboard = leaderboard
         }
-
-        leaderboard = newLeaderboard
-    }
-
-    // Sample data for testing - TODO: Replace with real P2P data
-    LaunchedEffect(Unit) {
-        delay(1000)
-        onLeaderboardUpdate(
-            listOf(
-                LeaderboardEntry("Player 1", 999.00),
-                LeaderboardEntry("Player 2", 856.47),
-                LeaderboardEntry("Player 3", 723.89),
-                LeaderboardEntry("Player 4", 687.23),
-                LeaderboardEntry("Player 5", 654.12),
-                LeaderboardEntry("Player 6", 598.76),
-                LeaderboardEntry("Player 7", 532.45),
-                LeaderboardEntry("Player 8", 489.34),
-                LeaderboardEntry("Player 9", 423.78),
-                LeaderboardEntry("Player 10", 367.92)
-            )
-        )
-
-        // Simulate a new first place after 5 seconds
-        delay(5000)
-        onLeaderboardUpdate(
-            listOf(
-                LeaderboardEntry("CHAMPION", 999.99),
-                LeaderboardEntry("Player 1", 999.00),
-                LeaderboardEntry("Player 2", 856.47),
-                LeaderboardEntry("Player 3", 723.89),
-                LeaderboardEntry("Player 4", 687.23),
-                LeaderboardEntry("Player 5", 654.12),
-                LeaderboardEntry("Player 6", 598.76),
-                LeaderboardEntry("Player 7", 532.45),
-                LeaderboardEntry("Player 8", 489.34),
-                LeaderboardEntry("Player 9", 423.78)
-            )
-        )
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -169,15 +202,40 @@ fun LeaderboardScreen() {
                 .systemBarsPadding()
                 .padding(16.dp)
         ) {
+            // Connection status indicator
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(
+                            if (isConnected) Color(0xFF27ae60) else Color(0xFFe74c3c),
+                            shape = CircleShape
+                        )
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isConnected) "CONNECTED" else "SEARCHING...",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isConnected) Color(0xFF27ae60) else Color(0xFFe74c3c)
+                )
+            }
+
             // Title
             Text(
-                text = "🥊 PUNCH LEADERBOARD",
+                text = "🥊 PUNCH",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFf39c12),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 24.dp),
+                    .padding(vertical = 16.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 

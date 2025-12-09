@@ -5,6 +5,8 @@ import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import com.rymin.punch.data.LeaderboardEntry
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -12,6 +14,16 @@ class NearbyConnectionsManager(private val context: Context) {
     private val connectionsClient = Nearby.getConnectionsClient(context)
     private val json = Json { ignoreUnknownKeys = true }
     private var connectedEndpointId: String? = null
+
+    private val _connectionStatus = kotlinx.coroutines.flow.MutableStateFlow(ConnectionStatus.DISCONNECTED)
+    val connectionStatus: kotlinx.coroutines.flow.StateFlow<ConnectionStatus> = _connectionStatus.asStateFlow()
+
+    enum class ConnectionStatus {
+        DISCONNECTED,
+        ADVERTISING,
+        CONNECTING,
+        CONNECTED
+    }
 
     companion object {
         private const val TAG = "NearbyConnections"
@@ -22,6 +34,7 @@ class NearbyConnectionsManager(private val context: Context) {
     private val connectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, connectionInfo: ConnectionInfo) {
             Log.d(TAG, "Connection initiated with: ${connectionInfo.endpointName}")
+            _connectionStatus.value = ConnectionStatus.CONNECTING
             // Automatically accept the connection
             connectionsClient.acceptConnection(endpointId, payloadCallback)
         }
@@ -31,12 +44,15 @@ class NearbyConnectionsManager(private val context: Context) {
                 ConnectionsStatusCodes.STATUS_OK -> {
                     Log.d(TAG, "Connection established with: $endpointId")
                     connectedEndpointId = endpointId
+                    _connectionStatus.value = ConnectionStatus.CONNECTED
                 }
                 ConnectionsStatusCodes.STATUS_CONNECTION_REJECTED -> {
                     Log.d(TAG, "Connection rejected")
+                    _connectionStatus.value = ConnectionStatus.ADVERTISING
                 }
                 ConnectionsStatusCodes.STATUS_ERROR -> {
                     Log.d(TAG, "Connection error")
+                    _connectionStatus.value = ConnectionStatus.ADVERTISING
                 }
             }
         }
@@ -45,6 +61,7 @@ class NearbyConnectionsManager(private val context: Context) {
             Log.d(TAG, "Disconnected from: $endpointId")
             if (connectedEndpointId == endpointId) {
                 connectedEndpointId = null
+                _connectionStatus.value = ConnectionStatus.ADVERTISING
             }
         }
     }
@@ -74,6 +91,7 @@ class NearbyConnectionsManager(private val context: Context) {
             advertisingOptions
         ).addOnSuccessListener {
             Log.d(TAG, "Started advertising")
+            _connectionStatus.value = ConnectionStatus.ADVERTISING
         }.addOnFailureListener { e ->
             Log.e(TAG, "Failed to start advertising", e)
         }
@@ -114,6 +132,7 @@ class NearbyConnectionsManager(private val context: Context) {
     fun disconnect() {
         connectionsClient.stopAllEndpoints()
         connectedEndpointId = null
+        _connectionStatus.value = ConnectionStatus.DISCONNECTED
     }
 
     /**
