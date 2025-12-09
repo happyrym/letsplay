@@ -15,6 +15,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.ln
 
+// Format score: 1000 displays as 999.99
+private fun formatScore(score: Double): String {
+    val displayValue = if (score >= 1000.0) 999.99 else score
+    return String.format("%.2f", displayValue)
+}
+
 @Composable
 fun ResultScreen(score: Double, onRestart: () -> Unit) {
     var displayScore by remember { mutableStateOf(0.0) }
@@ -89,7 +95,7 @@ fun ResultScreen(score: Double, onRestart: () -> Unit) {
             )
 
             Text(
-                text = String.format("%.2f", displayScore),
+                text = formatScore(displayScore),
                 fontSize = 120.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFf39c12),

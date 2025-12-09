@@ -8,6 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// Score constants
+private const val MAX_SCORE = 1000.0
+private const val SPEED_SCORE_MAX = 400.0
+private const val SPEED_THRESHOLD = 50f  // Speed above this threshold gives full speed score
+private const val ACCURACY_SCORE_MAX = 600.0
+
 data class GameState(
     val timeRemaining: Int = 10,
     val score: Double = 0.0,
@@ -63,16 +69,17 @@ class GameViewModel : ViewModel() {
     fun onPunch(accuracy: Float, speed: Float) {
         if (_gameState.value.gamePhase != GamePhase.CHARGING) return
 
-        // Speed score: 0-500 points (faster = better)
-        val speedScore = (speed * 5.0).coerceIn(0.0, 500.0)
+        // Speed score: 0 or SPEED_SCORE_MAX (400) points
+        // If speed >= SPEED_THRESHOLD, give full speed score
+        val speedScore = if (speed >= SPEED_THRESHOLD) SPEED_SCORE_MAX else 0.0
 
-        // Accuracy score: 0-499 points (center = better)
-        val accuracyScore = accuracy * 499.0
+        // Accuracy score: 0-600 points (center = better)
+        val accuracyScore = accuracy * ACCURACY_SCORE_MAX
 
         val totalScore = speedScore + accuracyScore
 
         _gameState.value = _gameState.value.copy(
-            score = totalScore.coerceIn(0.0, 999.0),
+            score = totalScore.coerceIn(0.0, MAX_SCORE),
             gamePhase = GamePhase.RESULT
         )
     }
