@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.*
 import com.rymin.punch.data.LeaderboardEntry
+import com.rymin.punch.data.LeaderboardData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
@@ -105,7 +106,7 @@ class NearbyConnectionsManager(private val context: Context) {
     }
 
     /**
-     * Send leaderboard data to connected client
+     * Send leaderboard data to connected client (legacy - punch only)
      */
     fun sendLeaderboard(leaderboard: List<LeaderboardEntry>) {
         connectedEndpointId?.let { endpointId ->
@@ -122,6 +123,28 @@ class NearbyConnectionsManager(private val context: Context) {
                     }
             } catch (e: Exception) {
                 Log.e(TAG, "Error encoding leaderboard", e)
+            }
+        } ?: Log.w(TAG, "No connected endpoint to send data")
+    }
+
+    /**
+     * Send both punch and dart leaderboards to connected client
+     */
+    fun sendLeaderboardData(leaderboardData: LeaderboardData) {
+        connectedEndpointId?.let { endpointId ->
+            try {
+                val jsonData = json.encodeToString(leaderboardData)
+                val payload = Payload.fromBytes(jsonData.toByteArray())
+
+                connectionsClient.sendPayload(endpointId, payload)
+                    .addOnSuccessListener {
+                        Log.d(TAG, "LeaderboardData sent: Punch=${leaderboardData.punchLeaderboard.size}, Dart=${leaderboardData.dartLeaderboard.size}")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.e(TAG, "Failed to send leaderboard data", e)
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error encoding leaderboard data", e)
             }
         } ?: Log.w(TAG, "No connected endpoint to send data")
     }

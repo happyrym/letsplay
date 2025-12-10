@@ -17,6 +17,9 @@ class NearbyConnectionsClient(private val context: Context) {
     private val _leaderboardFlow = MutableStateFlow<List<LeaderboardEntry>>(emptyList())
     val leaderboardFlow: StateFlow<List<LeaderboardEntry>> = _leaderboardFlow.asStateFlow()
 
+    private val _leaderboardDataFlow = MutableStateFlow(LeaderboardData())
+    val leaderboardDataFlow: StateFlow<LeaderboardData> = _leaderboardDataFlow.asStateFlow()
+
     private val _connectionStatus = MutableStateFlow(false)
     val connectionStatus: StateFlow<Boolean> = _connectionStatus.asStateFlow()
 
@@ -85,9 +88,19 @@ class NearbyConnectionsClient(private val context: Context) {
             payload.asBytes()?.let { bytes ->
                 try {
                     val jsonString = String(bytes)
-                    val leaderboard = json.decodeFromString<List<LeaderboardEntry>>(jsonString)
-                    _leaderboardFlow.value = leaderboard
-                    Log.d(TAG, "Received leaderboard: ${leaderboard.size} entries")
+                    // Try to parse as LeaderboardData first (new format)
+                    try {
+                        val leaderboardData = json.decodeFromString<LeaderboardData>(jsonString)
+                        _leaderboardDataFlow.value = leaderboardData
+                        _leaderboardFlow.value = leaderboardData.punchLeaderboard  // Backward compatibility
+                        Log.d(TAG, "Received leaderboard data: Punch=${leaderboardData.punchLeaderboard.size}, Dart=${leaderboardData.dartLeaderboard.size}")
+                    } catch (e: Exception) {
+                        // Fall back to old format (List<LeaderboardEntry>)
+                        val leaderboard = json.decodeFromString<List<LeaderboardEntry>>(jsonString)
+                        _leaderboardFlow.value = leaderboard
+                        _leaderboardDataFlow.value = LeaderboardData(punchLeaderboard = leaderboard)
+                        Log.d(TAG, "Received legacy leaderboard: ${leaderboard.size} entries")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error decoding leaderboard", e)
                 }

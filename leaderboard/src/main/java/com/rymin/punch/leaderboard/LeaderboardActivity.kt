@@ -38,13 +38,24 @@ import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 import kotlin.random.Random
 import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
 
 @Serializable
 data class LeaderboardEntry(
     val name: String,
     val score: Double,
     val weaponType: String = "BOXING_GLOVE",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val gameType: String = "PUNCH"
+)
+
+@Serializable
+data class LeaderboardData(
+    val punchLeaderboard: List<LeaderboardEntry> = emptyList(),
+    val dartLeaderboard: List<LeaderboardEntry> = emptyList()
 )
 
 data class CelebrationParticle(
@@ -89,11 +100,11 @@ class LeaderboardActivity : ComponentActivity() {
 
         setContent {
             LeaderboardTheme {
-                val leaderboard by nearbyClient.leaderboardFlow.collectAsState()
+                val leaderboardData by nearbyClient.leaderboardDataFlow.collectAsState()
                 val isConnected by nearbyClient.connectionStatus.collectAsState()
 
-                LeaderboardScreen(
-                    leaderboard = leaderboard,
+                DualLeaderboardScreen(
+                    leaderboardData = leaderboardData,
                     isConnected = isConnected
                 )
             }
@@ -151,10 +162,55 @@ fun LeaderboardTheme(content: @Composable () -> Unit) {
     }
 }
 
+enum class GameTab {
+    PUNCH, DART
+}
+
+@Composable
+fun DualLeaderboardScreen(
+    leaderboardData: LeaderboardData = LeaderboardData(),
+    isConnected: Boolean = false
+) {
+    var currentTab by remember { mutableStateOf(GameTab.PUNCH) }
+    var dragOffset by remember { mutableStateOf(0f) }
+
+    val currentLeaderboard = when (currentTab) {
+        GameTab.PUNCH -> leaderboardData.punchLeaderboard
+        GameTab.DART -> leaderboardData.dartLeaderboard
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        if (abs(dragOffset) > 100) {
+                            currentTab = if (dragOffset > 0) GameTab.PUNCH else GameTab.DART
+                        }
+                        dragOffset = 0f
+                    },
+                    onHorizontalDrag = { _, dragAmount ->
+                        dragOffset += dragAmount
+                    }
+                )
+            }
+    ) {
+        LeaderboardScreen(
+            leaderboard = currentLeaderboard,
+            isConnected = isConnected,
+            gameTab = currentTab,
+            onTabChange = { currentTab = it }
+        )
+    }
+}
+
 @Composable
 fun LeaderboardScreen(
     leaderboard: List<LeaderboardEntry> = emptyList(),
-    isConnected: Boolean = false
+    isConnected: Boolean = false,
+    gameTab: GameTab = GameTab.PUNCH,
+    onTabChange: (GameTab) -> Unit = {}
 ) {
     var previousLeaderboard by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
     var showCelebration by remember { mutableStateOf(false) }
@@ -171,7 +227,7 @@ fun LeaderboardScreen(
     }
 
     // Detect new first place when leaderboard updates
-    LaunchedEffect(leaderboard) {
+    LaunchedEffect(leaderboard, gameTab) {
         if (leaderboard.isNotEmpty()) {
             val previousFirstPlace = previousLeaderboard.firstOrNull()
             val newFirstPlace = leaderboard.firstOrNull()
@@ -246,29 +302,101 @@ fun LeaderboardScreen(
                 )
             }
 
-            // Title
-            Text(
-                text = "🥊 PUNCH",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFf39c12),
+            // Tab selector
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 16.dp),
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Punch tab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (gameTab == GameTab.PUNCH) Color(0xFFf39c12) else Color(0xFF16213e),
+                            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                        )
+                        .pointerInput(Unit) {
+                            detectTapGestures {
+                                onTabChange(GameTab.PUNCH)
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🥊 PUNCH",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (gameTab == GameTab.PUNCH) Color.Black else Color.White
+                    )
+                }
+
+                // Dart tab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (gameTab == GameTab.DART) Color(0xFF3498db) else Color(0xFF16213e),
+                            shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                        )
+                        .pointerInput(Unit) {
+                            detectTapGestures {
+                                onTabChange(GameTab.DART)
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🎯 DART",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (gameTab == GameTab.DART) Color.Black else Color.White
+                    )
+                }
+            }
+
+            // Swipe hint
+            Text(
+                text = "← Swipe to switch →",
+                fontSize = 12.sp,
+                color = Color.White.copy(alpha = 0.5f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
 
             // Leaderboard List
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                itemsIndexed(leaderboard.take(10)) { index, entry ->
-                    LeaderboardItem(
-                        entry = entry,
-                        rank = index + 1,
-                        isNewFirstPlace = showCelebration && index == 0
+            if (leaderboard.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No scores yet!\nPlay the game to add entries.",
+                        fontSize = 18.sp,
+                        color = Color.White.copy(alpha = 0.6f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(leaderboard.take(10)) { index, entry ->
+                        LeaderboardItem(
+                            entry = entry,
+                            rank = index + 1,
+                            isNewFirstPlace = showCelebration && index == 0,
+                            gameTab = gameTab
+                        )
+                    }
                 }
             }
         }
@@ -305,6 +433,7 @@ fun LeaderboardScreen(
         if (showCelebration && newFirstPlaceEntry != null) {
             CelebrationOverlay(
                 entry = newFirstPlaceEntry!!,
+                gameTab = gameTab,
                 onDismiss = {
                     showCelebration = false
                     newFirstPlaceEntry = null
@@ -318,7 +447,8 @@ fun LeaderboardScreen(
 fun LeaderboardItem(
     entry: LeaderboardEntry,
     rank: Int,
-    isNewFirstPlace: Boolean
+    isNewFirstPlace: Boolean,
+    gameTab: GameTab = GameTab.PUNCH
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
@@ -361,16 +491,31 @@ fun LeaderboardItem(
             modifier = Modifier.width(50.dp)
         )
 
-        // Weapon icon
-        Image(
-            painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
-            contentDescription = entry.weaponType,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.2f))
-                .padding(4.dp)
-        )
+        // Game icon - show weapon for Punch, dart icon for Dart
+        if (gameTab == GameTab.PUNCH) {
+            Image(
+                painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
+                contentDescription = entry.weaponType,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.2f))
+                    .padding(4.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🎯",
+                    fontSize = 24.sp
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.width(12.dp))
 
@@ -383,9 +528,13 @@ fun LeaderboardItem(
             modifier = Modifier.weight(1f)
         )
 
-        // Score
+        // Score - different format for Punch vs Dart
         Text(
-            text = String.format("%.2f", entry.score),
+            text = if (gameTab == GameTab.PUNCH) {
+                String.format("%.2f", entry.score)
+            } else {
+                entry.score.toInt().toString()
+            },
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = textColor
@@ -396,6 +545,7 @@ fun LeaderboardItem(
 @Composable
 fun CelebrationOverlay(
     entry: LeaderboardEntry,
+    gameTab: GameTab = GameTab.PUNCH,
     onDismiss: () -> Unit
 ) {
     val scale = remember { Animatable(0f) }
@@ -417,6 +567,8 @@ fun CelebrationOverlay(
         onDismiss()
     }
 
+    val accentColor = if (gameTab == GameTab.PUNCH) Color(0xFFf39c12) else Color(0xFF3498db)
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -436,16 +588,31 @@ fun CelebrationOverlay(
                 color = Color(0xFFFFD700)
             )
 
-            // Weapon icon
-            Image(
-                painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
-                contentDescription = entry.weaponType,
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.2f))
-                    .padding(8.dp)
-            )
+            // Game icon
+            if (gameTab == GameTab.PUNCH) {
+                Image(
+                    painter = painterResource(id = getWeaponDrawable(entry.weaponType)),
+                    contentDescription = entry.weaponType,
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .padding(8.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.White.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🎯",
+                        fontSize = 64.sp
+                    )
+                }
+            }
 
             Text(
                 text = entry.name,
@@ -455,10 +622,14 @@ fun CelebrationOverlay(
             )
 
             Text(
-                text = String.format("%.2f", entry.score),
+                text = if (gameTab == GameTab.PUNCH) {
+                    String.format("%.2f", entry.score)
+                } else {
+                    entry.score.toInt().toString()
+                },
                 fontSize = 56.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFf39c12)
+                color = accentColor
             )
         }
     }
