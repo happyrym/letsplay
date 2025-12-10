@@ -302,7 +302,7 @@ fun DartGameScreen(
     // Dart rest position (bottom center)
     val dartRestX = screenSize.width / 2
     val dartRestY = screenSize.height - 120f
-    val dartHitRadius = 80f  // Touch area for dart
+    val dartHitRadius = 120f  // Touch area for dart (larger for easier grabbing)
 
     Box(
         modifier = Modifier
@@ -342,7 +342,8 @@ fun DartGameScreen(
                                         val distance = sqrt(dx * dx + dy * dy)
                                         val elapsed = System.currentTimeMillis() - swipeStartTime
 
-                                        if (dy < -50 && distance > 80 && elapsed > 0) {
+                                        // Throw if dragged upward at all (dy < -30, distance > 40)
+                                        if (dy < -30 && distance > 40 && elapsed > 0) {
                                             val velocity = distance / elapsed
                                             val angle = atan2(dy, dx)
                                             processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
@@ -388,7 +389,8 @@ fun DartGameScreen(
                                             val distance = sqrt(dx * dx + dy * dy)
                                             val elapsed = System.currentTimeMillis() - swipeStartTime
 
-                                            if (dy < -50 && distance > 80 && elapsed > 0) {
+                                            // Throw if dragged upward at all (dy < -30, distance > 40)
+                                            if (dy < -30 && distance > 40 && elapsed > 0) {
                                                 val velocity = distance / elapsed
                                                 val angle = atan2(dy, dx)
                                                 processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
@@ -1126,10 +1128,11 @@ fun drawHoldableDart(drawScope: DrawScope, x: Float, y: Float, scale: Float) {
 fun calculateRealDartScore(normalizedX: Float, normalizedY: Float): DartScore {
     val distance = sqrt(normalizedX * normalizedX + normalizedY * normalizedY)
 
+    // Double and Triple zones expanded by 5%
     val doubleOuterR = 1.0f
-    val doubleInnerR = 0.95f
-    val tripleOuterR = 0.60f
-    val tripleInnerR = 0.55f
+    val doubleInnerR = 0.90f    // was 0.95f (5% wider)
+    val tripleOuterR = 0.65f    // was 0.60f (5% wider)
+    val tripleInnerR = 0.50f    // was 0.55f (5% wider)
     val bullOuterR = 0.16f
     val bullInnerR = 0.065f
 
