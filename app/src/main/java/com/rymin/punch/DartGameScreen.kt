@@ -2,7 +2,9 @@ package com.rymin.punch
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -1305,7 +1307,13 @@ fun DartResultOverlay(
                     },
                     onDelete = {
                         if (playerName.isNotEmpty()) {
-                            playerName = playerName.dropLast(1)
+                            // Handle emoji (surrogate pairs) properly
+                            val lastChar = playerName.last()
+                            playerName = if (lastChar.isLowSurrogate() && playerName.length >= 2) {
+                                playerName.dropLast(2)  // Drop surrogate pair
+                            } else {
+                                playerName.dropLast(1)
+                            }
                         }
                     },
                     onConfirm = {
@@ -1329,13 +1337,7 @@ fun DartResultOverlay(
                             .width(130.dp)
                             .height(52.dp)
                             .background(Color(0xFF7f8c8d), RoundedCornerShape(12.dp))
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { onBack() },
-                                    onDrag = { _, _ -> },
-                                    onDragEnd = {}
-                                )
-                            },
+                            .clickable { onBack() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1351,13 +1353,7 @@ fun DartResultOverlay(
                             .width(130.dp)
                             .height(52.dp)
                             .background(Color(0xFF27ae60), RoundedCornerShape(12.dp))
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { onRestart() },
-                                    onDrag = { _, _ -> },
-                                    onDragEnd = {}
-                                )
-                            },
+                            .clickable { onRestart() },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -1381,8 +1377,8 @@ fun DartNameKeypad(
 ) {
     // A-Z alphabet
     val alphabet = ('A'..'Z').map { it.toString() }
-    // Christmas & fun emojis
-    val emojis = listOf("🎅", "🎄", "🐾", "⭐")
+    // Christmas & fun emojis (9 total: 2 with V-Z, 7 on last row)
+    val emojis = listOf("🎅", "🎄", "🐾", "⭐", "❄️", "🎁", "🦌", "☃️", "🔔")
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1409,7 +1405,7 @@ fun DartNameKeypad(
             }
         }
 
-        // Row 4: V-Z (5 letters) + 2 emojis
+        // Row 4: V-Z (5 letters) + 2 emojis = 7
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             alphabet.drop(21).forEach { char ->
                 KeyButton(text = char, onClick = { onString(char) })
@@ -1419,7 +1415,7 @@ fun DartNameKeypad(
             }
         }
 
-        // Row 5: 2 more emojis
+        // Row 5: remaining 5 emojis
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             emojis.drop(2).forEach { emoji ->
                 KeyButton(text = emoji, onClick = { onString(emoji) }, isEmoji = true)
@@ -1436,13 +1432,7 @@ fun DartNameKeypad(
                     .width(100.dp)
                     .height(44.dp)
                     .background(Color(0xFFe74c3c), RoundedCornerShape(8.dp))
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { onDelete() },
-                            onDrag = { _, _ -> },
-                            onDragEnd = {}
-                        )
-                    },
+                    .clickable { onDelete() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1459,13 +1449,7 @@ fun DartNameKeypad(
                     .width(100.dp)
                     .height(44.dp)
                     .background(Color(0xFF27ae60), RoundedCornerShape(8.dp))
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { onConfirm() },
-                            onDrag = { _, _ -> },
-                            onDragEnd = {}
-                        )
-                    },
+                    .clickable { onConfirm() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -1488,13 +1472,7 @@ fun KeyButton(text: String, onClick: () -> Unit, isEmoji: Boolean = false) {
                 if (isEmoji) Color(0xFFe67e22) else Color(0xFF3498db),
                 RoundedCornerShape(6.dp)
             )
-            .pointerInput(text) {
-                detectDragGestures(
-                    onDragStart = { onClick() },
-                    onDrag = { _, _ -> },
-                    onDragEnd = {}
-                )
-            },
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Text(
