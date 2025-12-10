@@ -1296,11 +1296,11 @@ fun DartResultOverlay(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // T9 Keypad
+                // Alphabet Keypad
                 DartNameKeypad(
-                    onCharacter = { char ->
-                        if (playerName.length < 8) {
-                            playerName += char
+                    onString = { str ->
+                        if (playerName.length < 10) {
+                            playerName += str
                         }
                     },
                     onDelete = {
@@ -1375,67 +1375,66 @@ fun DartResultOverlay(
 
 @Composable
 fun DartNameKeypad(
-    onCharacter: (Char) -> Unit,
+    onString: (String) -> Unit,
     onDelete: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val keys = listOf(
-        listOf('A', 'B', 'C'),
-        listOf('D', 'E', 'F'),
-        listOf('G', 'H', 'I'),
-        listOf('J', 'K', 'L'),
-        listOf('M', 'N', 'O'),
-        listOf('P', 'Q', 'R'),
-        listOf('S', 'T', 'U'),
-        listOf('V', 'W', 'X'),
-        listOf('Y', 'Z', ' ')
-    )
+    // A-Z alphabet
+    val alphabet = ('A'..'Z').map { it.toString() }
+    // Christmas & fun emojis
+    val emojis = listOf("🎅", "🎄", "🐾", "⭐")
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        // 3x3 letter grid
-        for (row in 0..2) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                for (col in 0..2) {
-                    val keyIndex = row * 3 + col
-                    val chars = keys[keyIndex]
-
-                    Box(
-                        modifier = Modifier
-                            .size(70.dp)
-                            .background(Color(0xFF3498db), RoundedCornerShape(8.dp))
-                            .pointerInput(chars) {
-                                detectDragGestures(
-                                    onDragStart = { onCharacter(chars[0]) },
-                                    onDrag = { _, _ -> },
-                                    onDragEnd = {}
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = chars.joinToString(""),
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
+        // Row 1: A-G (7 letters)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            alphabet.take(7).forEach { char ->
+                KeyButton(text = char, onClick = { onString(char) })
             }
         }
 
-        // Bottom row: DEL, SPACE, OK
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
+        // Row 2: H-N (7 letters)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            alphabet.drop(7).take(7).forEach { char ->
+                KeyButton(text = char, onClick = { onString(char) })
+            }
+        }
+
+        // Row 3: O-U (7 letters)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            alphabet.drop(14).take(7).forEach { char ->
+                KeyButton(text = char, onClick = { onString(char) })
+            }
+        }
+
+        // Row 4: V-Z (5 letters) + 2 emojis
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            alphabet.drop(21).forEach { char ->
+                KeyButton(text = char, onClick = { onString(char) })
+            }
+            emojis.take(2).forEach { emoji ->
+                KeyButton(text = emoji, onClick = { onString(emoji) }, isEmoji = true)
+            }
+        }
+
+        // Row 5: 2 more emojis
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            emojis.drop(2).forEach { emoji ->
+                KeyButton(text = emoji, onClick = { onString(emoji) }, isEmoji = true)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Bottom row: DEL and OK
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // DEL button
             Box(
                 modifier = Modifier
-                    .width(70.dp)
-                    .height(50.dp)
+                    .width(100.dp)
+                    .height(44.dp)
                     .background(Color(0xFFe74c3c), RoundedCornerShape(8.dp))
                     .pointerInput(Unit) {
                         detectDragGestures(
@@ -1447,39 +1446,18 @@ fun DartNameKeypad(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "DEL",
-                    fontSize = 14.sp,
+                    text = "⌫ DEL",
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
 
+            // OK button
             Box(
                 modifier = Modifier
-                    .width(70.dp)
-                    .height(50.dp)
-                    .background(Color(0xFF7f8c8d), RoundedCornerShape(8.dp))
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { onCharacter(' ') },
-                            onDrag = { _, _ -> },
-                            onDragEnd = {}
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "SPACE",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(70.dp)
-                    .height(50.dp)
+                    .width(100.dp)
+                    .height(44.dp)
                     .background(Color(0xFF27ae60), RoundedCornerShape(8.dp))
                     .pointerInput(Unit) {
                         detectDragGestures(
@@ -1491,12 +1469,39 @@ fun DartNameKeypad(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "OK",
-                    fontSize = 14.sp,
+                    text = "✓ OK",
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
         }
+    }
+}
+
+@Composable
+fun KeyButton(text: String, onClick: () -> Unit, isEmoji: Boolean = false) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .background(
+                if (isEmoji) Color(0xFFe67e22) else Color(0xFF3498db),
+                RoundedCornerShape(6.dp)
+            )
+            .pointerInput(text) {
+                detectDragGestures(
+                    onDragStart = { onClick() },
+                    onDrag = { _, _ -> },
+                    onDragEnd = {}
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = if (isEmoji) 20.sp else 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
     }
 }
