@@ -1,4 +1,5 @@
 package com.rymin.punch
+package com.rymin.punch
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -92,6 +93,7 @@ fun DartGameScreen(
     isTopDartScore: Boolean = true,
     onSaveScore: (String, Int) -> Unit = { _, _ -> },
     onLeaderboardUpdated: () -> Unit = {},
+    onResetLeaderboard: () -> Unit = {},
     onBack: () -> Unit = {}
 ) {
     var gamePhase by remember { mutableStateOf(DartGamePhase.READY) }
@@ -107,8 +109,9 @@ fun DartGameScreen(
     var isDraggingDart by remember { mutableStateOf(false) }
     var dartDragOffset by remember { mutableStateOf(Offset.Zero) }
 
-    // Screen size for dart position calculation
-    var screenSize by remember { mutableStateOf(Size.Zero) }
+    // Game area size (right half)
+    var gameAreaSize by remember { mutableStateOf(Size.Zero) }
+    var gameAreaOffset by remember { mutableStateOf(Offset.Zero) }
 
     // Dart animation
     var dartProgress by remember { mutableStateOf(0f) }
@@ -126,6 +129,9 @@ fun DartGameScreen(
     var scorePopupScale by remember { mutableStateOf(0f) }
     var scorePopupAlpha by remember { mutableStateOf(0f) }
 
+    // Name input for result phase
+    var playerName by remember { mutableStateOf("") }
+
     // Timer countdown
     LaunchedEffect(gamePhase) {
         if (gamePhase == DartGamePhase.PLAYING) {
@@ -136,14 +142,13 @@ fun DartGameScreen(
                     timeRemaining--
                 }
             }
-            // Time's up - show result if still playing
             if (gamePhase == DartGamePhase.PLAYING) {
                 gamePhase = DartGamePhase.RESULT
             }
         }
     }
 
-    // Dart throwing animation with particle effects
+    // Dart throwing animation
     LaunchedEffect(gamePhase) {
         if (gamePhase == DartGamePhase.THROWING) {
             dartProgress = 0f
@@ -153,122 +158,93 @@ fun DartGameScreen(
             scorePopupAlpha = 0f
             trailParticles = emptyList()
 
-            val duration = 600L  // Slower dart flight animation
+            val duration = 400L
             val startTime = System.currentTimeMillis()
 
             while (dartProgress < 1f) {
                 val elapsed = System.currentTimeMillis() - startTime
                 dartProgress = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
-                val easedProgress = 1f - (1f - dartProgress).pow(3)
-                dartScale = 1f - easedProgress * 0.6f
+                dartScale = 1f - (1f - (1f - dartProgress).pow(3)) * 0.6f
 
-                // Add trail particles during flight (reduced)
-                if (dartProgress < 0.9f && kotlin.random.Random.nextFloat() < 0.15f) {
-                    trailParticles = trailParticles + DartParticle(
-                        x = dartProgress,
-                        y = kotlin.random.Random.nextFloat() * 0.1f - 0.05f,
-                        vx = 0f,
-                        vy = 0f,
-                        life = 150f,
-                        maxLife = 150f,
-                        size = 6f,
-                        color = Color(0xFFf39c12),
-                        type = ParticleType.SPARK
-                    )
+                if (dartProgress < 0.9f && trailParticles.size < 10) {
+                    if (kotlin.random.Random.nextFloat() < 0.3f) {
+                        trailParticles = trailParticles + DartParticle(
+                            x = dartProgress,
+                            y = kotlin.random.Random.nextFloat() * 0.04f - 0.02f,
+                            vx = 0f, vy = 0f,
+                            life = 120f, maxLife = 120f, size = 5f,
+                            color = Color(0xFFf39c12),
+                            type = ParticleType.SPARK
+                        )
+                    }
                 }
-
                 delay(16)
             }
 
-            // Calculate score
             val score = calculateRealDartScore(landingX, landingY)
             lastScore = score
             totalScore += score.totalPoints
             thrownDarts = thrownDarts + ThrownDart(landingX, landingY, score)
             dartsThrown++
 
-            // Generate hit particles based on score (reduced for performance)
             val particleCount = when {
-                score.totalPoints >= 50 -> 15  // Bullseye
-                score.multiplier == 3 -> 12    // Triple
-                score.multiplier == 2 -> 10    // Double
-                score.totalPoints > 0 -> 8     // Single
-                else -> 5                       // Miss
+                score.totalPoints >= 50 -> 6
+                score.multiplier == 3 -> 5
+                score.multiplier == 2 -> 4
+                score.totalPoints > 0 -> 3
+                else -> 2
             }
-
             val hitColor = when {
-                score.totalPoints >= 50 -> Color(0xFFFFD700)  // Gold
-                score.multiplier == 3 -> Color(0xFFe74c3c)    // Red
-                score.multiplier == 2 -> Color(0xFF27ae60)    // Green
-                else -> Color(0xFFf39c12)                      // Orange
+                score.totalPoints >= 50 -> Color(0xFFFFD700)
+                score.multiplier == 3 -> Color(0xFFe74c3c)
+                score.multiplier == 2 -> Color(0xFF27ae60)
+                else -> Color(0xFFf39c12)
             }
-
             hitParticles = List(particleCount) {
                 val angle = kotlin.random.Random.nextFloat() * 2 * PI.toFloat()
-                val speed = kotlin.random.Random.nextFloat() * 6f + 2f
+                val speed = kotlin.random.Random.nextFloat() * 5f + 2f
                 DartParticle(
-                    x = landingX,
-                    y = landingY,
-                    vx = cos(angle) * speed,
-                    vy = sin(angle) * speed,
-                    life = 300f,
-                    maxLife = 300f,
-                    size = kotlin.random.Random.nextFloat() * 8f + 4f,
-                    color = hitColor,
-                    type = ParticleType.SPARK
+                    x = landingX, y = landingY,
+                    vx = cos(angle) * speed, vy = sin(angle) * speed,
+                    life = 250f, maxLife = 250f,
+                    size = kotlin.random.Random.nextFloat() * 6f + 3f,
+                    color = hitColor, type = ParticleType.SPARK
                 )
             }
 
-            // Score popup animation
             showScorePopup = true
-            val popupStart = System.currentTimeMillis()
-            while (System.currentTimeMillis() - popupStart < 150) {
-                val t = (System.currentTimeMillis() - popupStart) / 150f
-                scorePopupScale = 1f + (1f - t) * 0.5f  // Start big, shrink to normal
-                scorePopupAlpha = t
-                delay(16)
-            }
-            scorePopupScale = 1f
+            scorePopupScale = 1.5f
             scorePopupAlpha = 1f
-
-            delay(650)
-
-            // Fade out
-            val fadeStart = System.currentTimeMillis()
-            while (System.currentTimeMillis() - fadeStart < 200) {
-                scorePopupAlpha = 1f - (System.currentTimeMillis() - fadeStart) / 200f
-                delay(16)
-            }
+            delay(600)
             showScorePopup = false
             hitParticles = emptyList()
             trailParticles = emptyList()
 
-            if (dartsThrown >= 3) {
+            if (dartsThrown >= 3 || timeRemaining <= 0) {
                 gamePhase = DartGamePhase.RESULT
-            } else if (timeRemaining > 0) {
-                gamePhase = DartGamePhase.PLAYING
+                playerName = ""  // Reset name for new result
             } else {
-                gamePhase = DartGamePhase.RESULT
+                gamePhase = DartGamePhase.PLAYING
             }
         }
     }
 
-    // Particle animation loop - simplified, only run when particles exist
+    // Particle animation loop
     LaunchedEffect(Unit) {
         while (true) {
             if (hitParticles.isNotEmpty() || trailParticles.isNotEmpty()) {
-                hitParticles = hitParticles.filter { p ->
-                    p.life -= 32f
+                hitParticles = hitParticles.mapNotNull { p ->
+                    p.life -= 40f
                     p.x += p.vx * 0.02f
                     p.y += p.vy * 0.02f
-                    p.life > 0
+                    if (p.life > 0) p else null
                 }
-                trailParticles = trailParticles.filter { p ->
-                    p.life -= 32f
-                    p.life > 0
+                trailParticles = trailParticles.mapNotNull { p ->
+                    p.life -= 40f
+                    if (p.life > 0) p else null
                 }
             }
-            delay(32)  // 30fps instead of 60fps for particles
+            delay(50)
         }
     }
 
@@ -276,381 +252,234 @@ fun DartGameScreen(
     fun processSwipe(swipeData: SwipeData) {
         if (gamePhase != DartGamePhase.PLAYING || dartsThrown >= 3 || timeRemaining <= 0) return
 
-        // Velocity normalization - slower dart flight
         val normalizedVelocity = (swipeData.velocity / 5f).coerceIn(0.2f, 1f)
-
-        // Swipe angle determines horizontal position (more sensitive)
         val angleFromUp = swipeData.angle + (PI / 2).toFloat()
         val horizontalOffset = sin(angleFromUp.toDouble()).toFloat() * 1.2f
-
-        // Better accuracy curve - faster swipes are more accurate
         val accuracy = normalizedVelocity.pow(0.5f) * 0.8f + 0.2f
         val randomSpread = (1f - accuracy) * 0.3f
-
-        // Improved landing calculation - center-biased with skill influence
         val targetX = (horizontalOffset * 0.7f + (kotlin.random.Random.nextFloat() - 0.5f) * randomSpread)
-        // Velocity determines vertical position: slow = bottom (miss), fast = top
-        // Range: slow (0.2) -> +1.2 (below board), fast (1.0) -> -0.9 (top)
         val verticalBias = (1f - normalizedVelocity) * 2.6f - 0.9f
         val targetY = verticalBias + (kotlin.random.Random.nextFloat() - 0.5f) * randomSpread * 1.5f
 
-        // Allow darts to land outside the board (miss)
         landingX = targetX.coerceIn(-1.3f, 1.3f)
         landingY = targetY.coerceIn(-1.3f, 1.3f)
-
         gamePhase = DartGamePhase.THROWING
     }
 
-    // Dart rest position (bottom center)
-    val dartRestX = screenSize.width / 2
-    val dartRestY = screenSize.height - 120f
-    val dartHitRadius = 120f  // Touch area for dart (larger for easier grabbing)
-
-    Box(
+    // ========== 가로 모드 태블릿 레이아웃 ==========
+    Row(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF1a1a2e))
-            .onSizeChanged { screenSize = Size(it.width.toFloat(), it.height.toFloat()) }
-            .pointerInput(gamePhase, timeRemaining, dartsThrown) {
-                when (gamePhase) {
-                    DartGamePhase.READY -> {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                // Check if touch is on the dart
-                                val dx = offset.x - dartRestX
-                                val dy = offset.y - dartRestY
-                                if (sqrt(dx * dx + dy * dy) < dartHitRadius) {
-                                    isDraggingDart = true
-                                    dartDragOffset = offset
-                                    swipeStart = offset
-                                    swipeStartTime = System.currentTimeMillis()
-                                    gamePhase = DartGamePhase.PLAYING
-                                }
-                            },
-                            onDrag = { change, _ ->
-                                if (isDraggingDart) {
-                                    change.consume()
-                                    dartDragOffset = change.position
-                                    currentSwipe = change.position
-                                }
-                            },
-                            onDragEnd = {
-                                if (isDraggingDart) {
-                                    val start = swipeStart
-                                    val end = currentSwipe
-                                    if (start != null && end != null) {
-                                        val dx = end.x - start.x
-                                        val dy = end.y - start.y
-                                        val distance = sqrt(dx * dx + dy * dy)
-                                        val elapsed = System.currentTimeMillis() - swipeStartTime
+    ) {
+        // ========== 왼쪽 패널: 게임 정보 / 결과 ==========
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .background(Color(0xFF16213e))
+                .padding(24.dp)
+        ) {
+            if (gamePhase == DartGamePhase.RESULT) {
+                // 결과 화면: 점수 + 이름 입력 상태 표시
+                DartResultLeftPanel(
+                    totalScore = totalScore,
+                    thrownDarts = thrownDarts,
+                    playerName = playerName,
+                    isTopScore = isTopDartScore,
+                    onRestart = {
+                        gamePhase = DartGamePhase.READY
+                        dartsThrown = 0
+                        totalScore = 0
+                        thrownDarts = emptyList()
+                        timeRemaining = 10
+                        lastScore = null
+                        playerName = ""
+                    },
+                    onBack = onBack,
+                    onResetLeaderboard = onResetLeaderboard
+                )
+            } else {
+                // 게임 진행 중: 타이머, 점수, 다트 현황
+                DartGameLeftPanel(
+                    gamePhase = gamePhase,
+                    timeRemaining = timeRemaining,
+                    totalScore = totalScore,
+                    dartsThrown = dartsThrown,
+                    thrownDarts = thrownDarts,
+                    lastScore = lastScore,
+                    showScorePopup = showScorePopup,
+                    scorePopupScale = scorePopupScale,
+                    scorePopupAlpha = scorePopupAlpha
+                )
+            }
+        }
 
-                                        // Throw if dragged upward at all (dy < -30, distance > 40)
-                                        if (dy < -30 && distance > 40 && elapsed > 0) {
-                                            val velocity = distance / elapsed
-                                            val angle = atan2(dy, dx)
-                                            processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
-                                        }
-                                    }
-                                    isDraggingDart = false
-                                    dartDragOffset = Offset.Zero
-                                    swipeStart = null
-                                    currentSwipe = null
-                                }
-                            }
-                        )
+        // ========== 오른쪽 패널: 게임 화면 / 키패드 ==========
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .onSizeChanged {
+                    gameAreaSize = Size(it.width.toFloat(), it.height.toFloat())
+                }
+        ) {
+            if (gamePhase == DartGamePhase.RESULT) {
+                // 결과 화면: ABC 키패드
+                DartResultRightPanel(
+                    playerName = playerName,
+                    isTopScore = isTopDartScore,
+                    totalScore = totalScore,
+                    onNameChange = { playerName = it },
+                    onSaveScore = { name ->
+                        onSaveScore(name, totalScore)
+                        onLeaderboardUpdated()
                     }
-                    DartGamePhase.PLAYING -> {
-                        if (timeRemaining > 0 && dartsThrown < 3) {
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    // Check if touch is on the dart
-                                    val dx = offset.x - dartRestX
-                                    val dy = offset.y - dartRestY
-                                    if (sqrt(dx * dx + dy * dy) < dartHitRadius) {
-                                        isDraggingDart = true
-                                        dartDragOffset = offset
-                                        swipeStart = offset
-                                        swipeStartTime = System.currentTimeMillis()
-                                        currentSwipe = offset
-                                    }
-                                },
-                                onDrag = { change, _ ->
-                                    if (isDraggingDart) {
-                                        change.consume()
-                                        dartDragOffset = change.position
-                                        currentSwipe = change.position
-                                    }
-                                },
-                                onDragEnd = {
-                                    if (isDraggingDart) {
-                                        val start = swipeStart
-                                        val end = currentSwipe
-                                        if (start != null && end != null) {
-                                            val dx = end.x - start.x
-                                            val dy = end.y - start.y
-                                            val distance = sqrt(dx * dx + dy * dy)
-                                            val elapsed = System.currentTimeMillis() - swipeStartTime
+                )
+            } else {
+                // 게임 화면: 다트보드
+                val dartRestX = gameAreaSize.width / 2
+                val dartRestY = gameAreaSize.height - 100f
+                val dartHitRadius = 100f
 
-                                            // Throw if dragged upward at all (dy < -30, distance > 40)
-                                            if (dy < -30 && distance > 40 && elapsed > 0) {
-                                                val velocity = distance / elapsed
-                                                val angle = atan2(dy, dx)
-                                                processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(gamePhase, timeRemaining, dartsThrown) {
+                            if (gamePhase == DartGamePhase.READY || gamePhase == DartGamePhase.PLAYING) {
+                                if (dartsThrown < 3) {
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            val dx = offset.x - dartRestX
+                                            val dy = offset.y - dartRestY
+                                            if (sqrt(dx * dx + dy * dy) < dartHitRadius) {
+                                                isDraggingDart = true
+                                                dartDragOffset = offset
+                                                swipeStart = offset
+                                                swipeStartTime = System.currentTimeMillis()
+                                                currentSwipe = offset
+                                                if (gamePhase == DartGamePhase.READY) {
+                                                    gamePhase = DartGamePhase.PLAYING
+                                                }
+                                            }
+                                        },
+                                        onDrag = { change, _ ->
+                                            if (isDraggingDart) {
+                                                change.consume()
+                                                dartDragOffset = change.position
+                                                currentSwipe = change.position
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            if (isDraggingDart) {
+                                                val start = swipeStart
+                                                val end = currentSwipe
+                                                if (start != null && end != null) {
+                                                    val dx = end.x - start.x
+                                                    val dy = end.y - start.y
+                                                    val distance = sqrt(dx * dx + dy * dy)
+                                                    val elapsed = System.currentTimeMillis() - swipeStartTime
+                                                    if (dy < -30 && distance > 40 && elapsed > 0) {
+                                                        val velocity = distance / elapsed
+                                                        val angle = atan2(dy, dx)
+                                                        processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
+                                                    }
+                                                }
+                                                isDraggingDart = false
+                                                dartDragOffset = Offset.Zero
+                                                swipeStart = null
+                                                currentSwipe = null
                                             }
                                         }
-                                        isDraggingDart = false
-                                        dartDragOffset = Offset.Zero
-                                        swipeStart = null
-                                        currentSwipe = null
-                                    }
+                                    )
                                 }
+                            }
+                        }
+                ) {
+                    // 다트보드
+                    RealDartBoard(
+                        thrownDarts = thrownDarts,
+                        dartProgress = if (gamePhase == DartGamePhase.THROWING) dartProgress else null,
+                        dartScale = dartScale,
+                        landingX = landingX,
+                        landingY = landingY,
+                        hitParticles = hitParticles,
+                        trailParticles = trailParticles,
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    // 스와이프 시각화
+                    val start = swipeStart
+                    val current = currentSwipe
+                    if (start != null && current != null && isDraggingDart) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val dx = current.x - start.x
+                            val dy = current.y - start.y
+                            val distance = sqrt(dx * dx + dy * dy)
+                            val velocity = distance / 300f
+
+                            drawLine(
+                                color = Color(0xFFf39c12).copy(alpha = 0.5f),
+                                start = start,
+                                end = current,
+                                strokeWidth = 8f
+                            )
+                            val powerColor = when {
+                                velocity > 0.8f -> Color(0xFFe74c3c)
+                                velocity > 0.5f -> Color(0xFFf39c12)
+                                else -> Color(0xFF3498db)
+                            }
+                            drawCircle(
+                                color = powerColor,
+                                radius = 20f + velocity * 10f,
+                                center = current
                             )
                         }
                     }
-                    else -> { }
+
+                    // 잡을 수 있는 다트
+                    if (gamePhase != DartGamePhase.THROWING && gamePhase != DartGamePhase.RESULT && dartsThrown < 3) {
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val dartX = if (isDraggingDart) dartDragOffset.x else dartRestX
+                            val dartY = if (isDraggingDart) dartDragOffset.y else dartRestY
+
+                            if (!isDraggingDart) {
+                                drawCircle(
+                                    color = Color(0xFFf39c12).copy(alpha = 0.4f),
+                                    radius = 45f,
+                                    center = Offset(dartX, dartY)
+                                )
+                            }
+                            drawHoldableDart(this, dartX, dartY, if (isDraggingDart) 1.1f else 1f)
+                        }
+                    }
+
+                    // READY 오버레이
+                    if (gamePhase == DartGamePhase.READY) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "🎯 GRAB THE DART",
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFf39c12)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "⬆️ Drag upward to throw!",
+                                    fontSize = 16.sp,
+                                    color = Color.White.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
+                    }
                 }
             }
-    ) {
-        // Full screen dart board with particles
-        RealDartBoard(
-            thrownDarts = thrownDarts,
-            dartProgress = if (gamePhase == DartGamePhase.THROWING) dartProgress else null,
-            dartScale = dartScale,
-            landingX = landingX,
-            landingY = landingY,
-            hitParticles = hitParticles,
-            trailParticles = trailParticles,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Enhanced swipe visualization overlay
-        val start = swipeStart
-        val current = currentSwipe
-        if (start != null && current != null && gamePhase == DartGamePhase.PLAYING) {
-            val dx = current.x - start.x
-            val dy = current.y - start.y
-            val distance = sqrt(dx * dx + dy * dy)
-            val velocity = distance / 300f  // Normalize for visual
-
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                // Gradient trail effect
-                val steps = 15
-                for (i in 0 until steps) {
-                    val t = i.toFloat() / steps
-                    val x = start.x + dx * t
-                    val y = start.y + dy * t
-                    val alpha = t * 0.6f
-                    val radius = 4f + t * 8f
-
-                    drawCircle(
-                        color = Color(0xFFf39c12).copy(alpha = alpha),
-                        radius = radius,
-                        center = Offset(x, y)
-                    )
-                }
-
-                // Main swipe line with glow
-                drawLine(
-                    color = Color(0xFFf39c12).copy(alpha = 0.3f),
-                    start = start,
-                    end = current,
-                    strokeWidth = 20f
-                )
-                drawLine(
-                    color = Color(0xFFf39c12),
-                    start = start,
-                    end = current,
-                    strokeWidth = 6f
-                )
-
-                // Power indicator at current position
-                val powerColor = when {
-                    velocity > 0.8f -> Color(0xFFe74c3c)  // Strong - Red
-                    velocity > 0.5f -> Color(0xFFf39c12)  // Medium - Orange
-                    else -> Color(0xFF3498db)              // Weak - Blue
-                }
-
-                // Outer glow
-                drawCircle(
-                    color = powerColor.copy(alpha = 0.3f),
-                    radius = 35f + velocity * 15f,
-                    center = current
-                )
-                // Inner circle
-                drawCircle(
-                    color = powerColor,
-                    radius = 18f + velocity * 8f,
-                    center = current
-                )
-                // Center dot
-                drawCircle(
-                    color = Color.White,
-                    radius = 6f,
-                    center = current
-                )
-
-                // Direction arrow
-                if (dy < -30) {
-                    val arrowLen = 40f
-                    val angle = atan2(dy, dx)
-                    val arrowX = current.x + cos(angle) * arrowLen
-                    val arrowY = current.y + sin(angle) * arrowLen
-
-                    drawLine(
-                        color = Color.White.copy(alpha = 0.8f),
-                        start = current,
-                        end = Offset(arrowX, arrowY),
-                        strokeWidth = 4f
-                    )
-                }
-            }
-        }
-
-        // Draw holdable dart at bottom (when not throwing)
-        if (gamePhase != DartGamePhase.THROWING && gamePhase != DartGamePhase.RESULT && dartsThrown < 3) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val dartX = if (isDraggingDart) dartDragOffset.x else dartRestX
-                val dartY = if (isDraggingDart) dartDragOffset.y else dartRestY
-
-                // Draw dart shadow/glow when at rest
-                if (!isDraggingDart) {
-                    drawCircle(
-                        color = Color(0xFFf39c12).copy(alpha = 0.3f),
-                        radius = 50f,
-                        center = Offset(dartX, dartY)
-                    )
-                }
-
-                // Draw the dart
-                drawHoldableDart(this, dartX, dartY, if (isDraggingDart) 1.2f else 1f)
-            }
-        }
-
-        // Top bar - Timer, Score, Darts remaining
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Timer
-            Text(
-                text = if (gamePhase == DartGamePhase.READY) "🎯" else "⏱ ${timeRemaining}s",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (timeRemaining <= 3 && gamePhase != DartGamePhase.READY)
-                    Color.Red else Color(0xFFf39c12)
-            )
-
-            // Score
-            Text(
-                text = "$totalScore",
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFFf39c12)
-            )
-
-            // Darts remaining
-            Row {
-                repeat(3) { index ->
-                    Text(
-                        text = if (index < 3 - dartsThrown) "🎯" else "⚫",
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(horizontal = 2.dp)
-                    )
-                }
-            }
-        }
-
-        // Animated score popup (center top)
-        if (showScorePopup && lastScore != null) {
-            val scoreColor = when {
-                lastScore!!.totalPoints >= 50 -> Color(0xFFFFD700)  // Bullseye - Gold
-                lastScore!!.multiplier == 3 -> Color(0xFFe74c3c)    // Triple - Red
-                lastScore!!.multiplier == 2 -> Color(0xFF27ae60)    // Double - Green
-                lastScore!!.totalPoints == 0 -> Color.Gray
-                else -> Color.White
-            }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 80.dp)
-            ) {
-                Text(
-                    text = lastScore!!.description,
-                    fontSize = (28 * scorePopupScale).sp,
-                    fontWeight = FontWeight.Bold,
-                    color = scoreColor.copy(alpha = scorePopupAlpha),
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    text = "+${lastScore!!.totalPoints}",
-                    fontSize = (42 * scorePopupScale).sp,
-                    fontWeight = FontWeight.Black,
-                    color = scoreColor.copy(alpha = scorePopupAlpha),
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-
-        // Ready screen overlay
-        if (gamePhase == DartGamePhase.READY) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "🎯 GRAB THE DART",
-                        fontSize = 36.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFf39c12)
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Text(
-                        text = "⬆️ Drag dart upward to throw!",
-                        fontSize = 20.sp,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "10 seconds, 3 darts",
-                        fontSize = 18.sp,
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
-                }
-            }
-        }
-
-        // Result overlay
-        if (gamePhase == DartGamePhase.RESULT) {
-            DartResultOverlay(
-                totalScore = totalScore,
-                thrownDarts = thrownDarts,
-                isTopScore = isTopDartScore,
-                onSaveScore = { name ->
-                    onSaveScore(name, totalScore)
-                },
-                onRestart = {
-                    gamePhase = DartGamePhase.READY
-                    dartsThrown = 0
-                    totalScore = 0
-                    thrownDarts = emptyList()
-                    timeRemaining = 10
-                    lastScore = null
-                    showScorePopup = false
-                },
-                onBack = onBack
-            )
         }
     }
 }
@@ -823,83 +652,36 @@ fun RealDartBoard(
             val linearY = startY + (targetY - startY) * easedProgress
             val currentY = linearY - parabola
 
-            // Draw trail particles behind dart
+            // 간소화된 trail 파티클 (성능 최적화)
             trailParticles.forEach { particle ->
                 val alpha = (particle.life / particle.maxLife).coerceIn(0f, 1f)
-                val trailX = startX + (targetX - startX) * particle.x
+                val trailX = startX + (targetX - startX) * particle.x + particle.y * 50f
                 val trailY = startY + (targetY - startY) * particle.x -
                     (-4 * arcHeight * particle.x * (particle.x - 1f))
 
+                // 단순 원으로 통일 (draw call 줄임)
                 drawCircle(
-                    color = particle.color.copy(alpha = alpha * 0.8f),
+                    color = particle.color.copy(alpha = alpha * 0.7f),
                     radius = particle.size * alpha,
-                    center = Offset(trailX + particle.y * 50f, trailY)
+                    center = Offset(trailX, trailY)
                 )
             }
 
             drawFlyingDart(this, currentX, currentY, dartScale)
         }
 
-        // Draw hit particles
+        // 간소화된 hit 파티클 (성능 최적화)
         hitParticles.forEach { particle ->
             val alpha = (particle.life / particle.maxLife).coerceIn(0f, 1f)
             val px = centerX + particle.x * boardRadius
             val py = centerY + particle.y * boardRadius
 
-            when (particle.type) {
-                ParticleType.SPARK -> {
-                    // Fast moving spark with trail
-                    drawLine(
-                        color = particle.color.copy(alpha = alpha),
-                        start = Offset(px, py),
-                        end = Offset(px - particle.vx * 3, py - particle.vy * 3),
-                        strokeWidth = particle.size * 0.5f * alpha
-                    )
-                }
-                ParticleType.GLOW -> {
-                    // Glowing orb with soft edge
-                    drawCircle(
-                        color = particle.color.copy(alpha = alpha * 0.3f),
-                        radius = particle.size * 2f,
-                        center = Offset(px, py)
-                    )
-                    drawCircle(
-                        color = particle.color.copy(alpha = alpha),
-                        radius = particle.size * alpha,
-                        center = Offset(px, py)
-                    )
-                }
-                ParticleType.STAR -> {
-                    // Simple star shape
-                    val starSize = particle.size * alpha
-                    drawLine(
-                        color = particle.color.copy(alpha = alpha),
-                        start = Offset(px - starSize, py),
-                        end = Offset(px + starSize, py),
-                        strokeWidth = 2f
-                    )
-                    drawLine(
-                        color = particle.color.copy(alpha = alpha),
-                        start = Offset(px, py - starSize),
-                        end = Offset(px, py + starSize),
-                        strokeWidth = 2f
-                    )
-                    drawLine(
-                        color = particle.color.copy(alpha = alpha),
-                        start = Offset(px - starSize * 0.7f, py - starSize * 0.7f),
-                        end = Offset(px + starSize * 0.7f, py + starSize * 0.7f),
-                        strokeWidth = 1.5f
-                    )
-                }
-                ParticleType.SMOKE -> {
-                    // Soft smoke puff
-                    drawCircle(
-                        color = Color.White.copy(alpha = alpha * 0.2f),
-                        radius = particle.size * (2f - alpha),
-                        center = Offset(px, py)
-                    )
-                }
-            }
+            // 단순 원 하나로 통일
+            drawCircle(
+                color = particle.color.copy(alpha = alpha),
+                radius = particle.size * alpha,
+                center = Offset(px, py)
+            )
         }
     }
 }
@@ -985,17 +767,13 @@ fun drawFlyingDart(drawScope: DrawScope, x: Float, y: Float, scale: Float) {
         val dartLength = 90f * scale
         val dartWidth = 22f * scale
 
-        // Motion blur / speed lines
-        val blurCount = 5
-        for (i in 1..blurCount) {
-            val blurAlpha = 0.15f - (i * 0.025f)
-            val blurOffset = i * 12f
-            drawOval(
-                color = Color(0xFF4A4A4A).copy(alpha = blurAlpha),
-                topLeft = Offset(x - dartWidth / 2, y - dartLength * 0.3f + blurOffset),
-                size = Size(dartWidth * 0.8f, dartLength * 0.4f)
-            )
-        }
+        // 간소화된 motion blur (성능 최적화)
+        // 단순 그림자 1개만
+        drawOval(
+            color = Color(0xFF4A4A4A).copy(alpha = 0.15f),
+            topLeft = Offset(x - dartWidth / 2, y - dartLength * 0.3f + 20f),
+            size = Size(dartWidth * 0.8f, dartLength * 0.5f)
+        )
 
         // Metallic body with gradient effect
         drawOval(
@@ -1178,6 +956,438 @@ enum class DartResultPhase {
     READY_TO_RESTART
 }
 
+
+// ========== 가로 모드 왼쪽 패널: 게임 진행 중 ==========
+@Composable
+fun DartGameLeftPanel(
+    gamePhase: DartGamePhase,
+    timeRemaining: Int,
+    totalScore: Int,
+    dartsThrown: Int,
+    thrownDarts: List<ThrownDart>,
+    lastScore: DartScore?,
+    showScorePopup: Boolean,
+    scorePopupScale: Float,
+    scorePopupAlpha: Float
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // 상단: 타이머
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(top = 16.dp)
+        ) {
+            Text(
+                text = if (gamePhase == DartGamePhase.READY) "READY" else "TIME",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+            Text(
+                text = if (gamePhase == DartGamePhase.READY) "🎯" else "$timeRemaining",
+                fontSize = 72.sp,
+                fontWeight = FontWeight.Black,
+                color = if (timeRemaining <= 3 && gamePhase != DartGamePhase.READY)
+                    Color(0xFFe74c3c) else Color(0xFFf39c12)
+            )
+        }
+
+        // 중앙: 총점
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "SCORE",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+            Text(
+                text = "$totalScore",
+                fontSize = 80.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White
+            )
+
+            // 마지막 점수 팝업
+            if (showScorePopup && lastScore != null) {
+                val scoreColor = when {
+                    lastScore.totalPoints >= 50 -> Color(0xFFFFD700)
+                    lastScore.multiplier == 3 -> Color(0xFFe74c3c)
+                    lastScore.multiplier == 2 -> Color(0xFF27ae60)
+                    lastScore.totalPoints == 0 -> Color.Gray
+                    else -> Color(0xFFf39c12)
+                }
+                Text(
+                    text = "+${lastScore.totalPoints}",
+                    fontSize = (36 * scorePopupScale).sp,
+                    fontWeight = FontWeight.Bold,
+                    color = scoreColor.copy(alpha = scorePopupAlpha)
+                )
+                Text(
+                    text = lastScore.description,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = scoreColor.copy(alpha = scorePopupAlpha)
+                )
+            }
+        }
+
+        // 하단: 다트 현황
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = "DARTS",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // 다트 아이콘 (던진 것 / 남은 것)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                repeat(3) { index ->
+                    Text(
+                        text = if (index < dartsThrown) "✅" else "🎯",
+                        fontSize = 32.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 각 다트 점수
+            thrownDarts.forEachIndexed { index, dart ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "#${index + 1}",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = dart.score.description,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            dart.score.multiplier == 3 -> Color(0xFFFFD700)
+                            dart.score.multiplier == 2 -> Color(0xFF27ae60)
+                            dart.score.totalPoints >= 50 -> Color(0xFFe74c3c)
+                            else -> Color.White
+                        }
+                    )
+                    Text(
+                        text = "(${dart.score.totalPoints})",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.7f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ========== 가로 모드 왼쪽 패널: 결과 화면 ==========
+@Composable
+fun DartResultLeftPanel(
+    totalScore: Int,
+    thrownDarts: List<ThrownDart>,
+    playerName: String,
+    isTopScore: Boolean,
+    onRestart: () -> Unit,
+    onBack: () -> Unit,
+    onResetLeaderboard: () -> Unit
+) {
+    // Hidden reset sequence
+    var resetStep by remember { mutableStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
+    val resetTimeout = 500L
+
+    fun isWithinTimeout(): Boolean = System.currentTimeMillis() - lastTapTime <= resetTimeout
+    fun updateTapTime() { lastTapTime = System.currentTimeMillis() }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // 상단: 타이틀
+        Text(
+            text = "🎯 RESULT 🎯",
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (resetStep == 5) Color.Red else Color(0xFF3498db),
+            modifier = Modifier
+                .padding(top = 24.dp)
+                .clickable {
+                    when (resetStep) {
+                        0 -> { resetStep = 1; updateTapTime() }
+                        2 -> if (isWithinTimeout()) { resetStep = 3; updateTapTime() } else resetStep = 0
+                        3 -> if (isWithinTimeout()) { resetStep = 4; updateTapTime() } else resetStep = 0
+                        4 -> if (isWithinTimeout()) { resetStep = 5; updateTapTime() } else resetStep = 0
+                        else -> resetStep = 0
+                    }
+                }
+        )
+
+        // 중앙: 점수
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "TOTAL SCORE",
+                fontSize = 18.sp,
+                color = Color.White.copy(alpha = 0.6f)
+            )
+            Text(
+                text = "$totalScore",
+                fontSize = 80.sp,
+                fontWeight = FontWeight.Black,
+                color = Color(0xFFf39c12),
+                modifier = Modifier.clickable {
+                    if (resetStep == 1 && isWithinTimeout()) {
+                        resetStep = 2
+                        updateTapTime()
+                    } else {
+                        resetStep = 0
+                    }
+                }
+            )
+
+            // 이름 입력 중 표시
+            if (isTopScore && playerName.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "NAME",
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = playerName,
+                    fontSize = 36.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF3498db)
+                )
+            }
+
+            // 각 다트 점수
+            Spacer(modifier = Modifier.height(24.dp))
+            thrownDarts.forEachIndexed { index, dart ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Dart ${index + 1}:",
+                        fontSize = 16.sp,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = "${dart.score.description} (${dart.score.totalPoints})",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            dart.score.multiplier == 3 -> Color(0xFFFFD700)
+                            dart.score.multiplier == 2 -> Color(0xFF27ae60)
+                            dart.score.totalPoints >= 50 -> Color(0xFFe74c3c)
+                            else -> Color.White
+                        }
+                    )
+                }
+            }
+        }
+
+        // 하단: 버튼
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(bottom = 32.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(120.dp)
+                    .height(50.dp)
+                    .background(Color(0xFF7f8c8d), RoundedCornerShape(12.dp))
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "🏠 HOME",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .width(120.dp)
+                    .height(50.dp)
+                    .background(
+                        if (resetStep == 5) Color.Red else Color(0xFF27ae60),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable {
+                        if (resetStep == 5) {
+                            onResetLeaderboard()
+                        }
+                        onRestart()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (resetStep == 5) "🗑️ RESET" else "🔄 RETRY",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
+    }
+}
+
+// ========== 가로 모드 오른쪽 패널: 결과 화면 (키패드) ==========
+@Composable
+fun DartResultRightPanel(
+    playerName: String,
+    isTopScore: Boolean,
+    totalScore: Int,
+    onNameChange: (String) -> Unit,
+    onSaveScore: (String) -> Unit
+) {
+    var isSaved by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1a1a2e))
+            .padding(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        if (!isTopScore || totalScore == 0) {
+            // Top 10 아님
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "😢",
+                    fontSize = 64.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Not in TOP 10",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = "Try again!",
+                    fontSize = 18.sp,
+                    color = Color.White.copy(alpha = 0.4f)
+                )
+            }
+        } else if (isSaved) {
+            // 저장 완료
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "🎉",
+                    fontSize = 64.sp
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "SAVED!",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF27ae60)
+                )
+                Text(
+                    text = playerName,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            }
+        } else {
+            // 이름 입력 키패드
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "🏆 TOP 10! 🏆",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Enter your name",
+                    fontSize = 16.sp,
+                    color = Color.White.copy(alpha = 0.6f)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 이름 표시
+                Box(
+                    modifier = Modifier
+                        .width(200.dp)
+                        .height(50.dp)
+                        .background(Color(0xFF16213e), RoundedCornerShape(8.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = playerName.ifEmpty { "_" },
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 키패드
+                DartNameKeypad(
+                    onString = { str ->
+                        if (playerName.length < 10) {
+                            onNameChange(playerName + str)
+                        }
+                    },
+                    onDelete = {
+                        if (playerName.isNotEmpty()) {
+                            val lastChar = playerName.last()
+                            onNameChange(
+                                if (lastChar.isLowSurrogate() && playerName.length >= 2) {
+                                    playerName.dropLast(2)
+                                } else {
+                                    playerName.dropLast(1)
+                                }
+                            )
+                        }
+                    },
+                    onConfirm = {
+                        if (playerName.isNotEmpty()) {
+                            onSaveScore(playerName)
+                            isSaved = true
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun DartResultOverlay(
     totalScore: Int,
@@ -1185,10 +1395,19 @@ fun DartResultOverlay(
     isTopScore: Boolean,
     onSaveScore: (String) -> Unit,
     onRestart: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onResetLeaderboard: () -> Unit = {}
 ) {
     var phase by remember { mutableStateOf(DartResultPhase.SHOWING_SCORE) }
     var playerName by remember { mutableStateOf("") }
+
+    // Hidden reset sequence: TITLE -> SCORE -> TITLE -> TITLE -> RETRY
+    var resetStep by remember { mutableStateOf(0) }  // 0: none, 1: title1, 2: score, 3: title2, 4: title3, 5: ready
+    var lastTapTime by remember { mutableStateOf(0L) }
+    val resetTimeout = 500L
+
+    fun isWithinTimeout(): Boolean = System.currentTimeMillis() - lastTapTime <= resetTimeout
+    fun updateTapTime() { lastTapTime = System.currentTimeMillis() }
 
     // Auto transition to name input if top score
     LaunchedEffect(Unit) {
@@ -1206,11 +1425,21 @@ fun DartResultOverlay(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Title - tappable for reset sequence
             Text(
                 text = "🎯 RESULT 🎯",
                 fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF3498db)
+                color = if (resetStep == 5) Color.Red else Color(0xFF3498db),
+                modifier = Modifier.clickable {
+                    when (resetStep) {
+                        0 -> { resetStep = 1; updateTapTime() }
+                        2 -> if (isWithinTimeout()) { resetStep = 3; updateTapTime() } else resetStep = 0
+                        3 -> if (isWithinTimeout()) { resetStep = 4; updateTapTime() } else resetStep = 0
+                        4 -> if (isWithinTimeout()) { resetStep = 5; updateTapTime() } else resetStep = 0
+                        else -> resetStep = 0
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -1260,11 +1489,20 @@ fun DartResultOverlay(
                 color = Color.White.copy(alpha = 0.7f)
             )
 
+            // Score - tappable for reset sequence
             Text(
                 text = "$totalScore",
                 fontSize = 64.sp,
                 fontWeight = FontWeight.Black,
-                color = Color(0xFFf39c12)
+                color = Color(0xFFf39c12),
+                modifier = Modifier.clickable {
+                    if (resetStep == 1 && isWithinTimeout()) {
+                        resetStep = 2
+                        updateTapTime()
+                    } else {
+                        resetStep = 0
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -1352,12 +1590,20 @@ fun DartResultOverlay(
                         modifier = Modifier
                             .width(130.dp)
                             .height(52.dp)
-                            .background(Color(0xFF27ae60), RoundedCornerShape(12.dp))
-                            .clickable { onRestart() },
+                            .background(
+                                if (resetStep == 5) Color.Red else Color(0xFF27ae60),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                if (resetStep == 5) {
+                                    onResetLeaderboard()
+                                }
+                                onRestart()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "🔄 RETRY",
+                            text = if (resetStep == 5) "🗑️ RESET" else "🔄 RETRY",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White

@@ -1,5 +1,7 @@
 package com.rymin.punch
 
+package com.rymin.punch
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -117,35 +119,24 @@ fun PunchGameApp(
     connectionStatus: NearbyConnectionsManager.ConnectionStatus,
     onStartDartGame: () -> Unit = {}
 ) {
-    var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
+    // Splash 없이 바로 다트 게임 시작
+    LaunchedEffect(Unit) {
+        onStartDartGame()
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color(0xFF1a1a2e)
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (currentScreen) {
-                Screen.SPLASH -> SplashScreen(onTimeout = { currentScreen = Screen.GAME_SELECT })
-                Screen.GAME_SELECT -> GameSelectScreen(
-                    onPunchSelected = { currentScreen = Screen.PUNCH_GAME },
-                    onDartSelected = onStartDartGame
-                )
-                Screen.PUNCH_GAME -> GameScreen(
-                    onLeaderboardUpdated = onLeaderboardUpdated,
-                    onBack = { currentScreen = Screen.GAME_SELECT }
-                )
-                Screen.DART_GAME -> { /* Handled by DartGameActivity */ }
-            }
-
-            // Connection status indicator (top-right corner)
-            if (currentScreen != Screen.SPLASH) {
-                ConnectionStatusIndicator(
-                    status = connectionStatus,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(16.dp)
-                )
-            }
+        // 로딩 화면 (다트 게임 Activity가 시작되기 전 잠깐 보임)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "🎯",
+                fontSize = 80.sp
+            )
         }
     }
 }

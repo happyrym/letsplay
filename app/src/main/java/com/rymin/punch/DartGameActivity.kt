@@ -49,6 +49,10 @@ class DartGameActivity : ComponentActivity() {
                         onLeaderboardUpdated = {
                             nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
                         },
+                        onResetLeaderboard = {
+                            leaderboardRepository.clearDartLeaderboard()
+                            nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
+                        },
                         onBack = { finish() }
                     )
                 }

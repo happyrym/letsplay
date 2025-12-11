@@ -171,7 +171,8 @@ fun DualLeaderboardScreen(
     leaderboardData: LeaderboardData = LeaderboardData(),
     isConnected: Boolean = false
 ) {
-    var currentTab by remember { mutableStateOf(GameTab.PUNCH) }
+    // 다트 게임만 사용 (펀치 게임 코드는 유지하되 숨김)
+    var currentTab by remember { mutableStateOf(GameTab.DART) }
     var dragOffset by remember { mutableStateOf(0f) }
 
     val currentLeaderboard = when (currentTab) {
@@ -179,28 +180,14 @@ fun DualLeaderboardScreen(
         GameTab.DART -> leaderboardData.dartLeaderboard
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (abs(dragOffset) > 100) {
-                            currentTab = if (dragOffset > 0) GameTab.PUNCH else GameTab.DART
-                        }
-                        dragOffset = 0f
-                    },
-                    onHorizontalDrag = { _, dragAmount ->
-                        dragOffset += dragAmount
-                    }
-                )
-            }
-    ) {
+    // 스와이프 비활성화 - 다트만 표시
+    Box(modifier = Modifier.fillMaxSize()) {
         LeaderboardScreen(
             leaderboard = currentLeaderboard,
             isConnected = isConnected,
             gameTab = currentTab,
-            onTabChange = { currentTab = it }
+            onTabChange = { /* 탭 전환 비활성화 */ },
+            showTabs = false  // 탭 UI 숨김
         )
     }
 }
@@ -210,7 +197,8 @@ fun LeaderboardScreen(
     leaderboard: List<LeaderboardEntry> = emptyList(),
     isConnected: Boolean = false,
     gameTab: GameTab = GameTab.PUNCH,
-    onTabChange: (GameTab) -> Unit = {}
+    onTabChange: (GameTab) -> Unit = {},
+    showTabs: Boolean = true
 ) {
     var previousLeaderboard by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
     var showCelebration by remember { mutableStateOf(false) }
@@ -302,72 +290,86 @@ fun LeaderboardScreen(
                 )
             }
 
-            // Tab selector
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                // Punch tab
-                Box(
+            // Tab selector (조건부 표시)
+            if (showTabs) {
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .background(
-                            if (gameTab == GameTab.PUNCH) Color(0xFFf39c12) else Color(0xFF16213e),
-                            shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
-                        )
-                        .pointerInput(Unit) {
-                            detectTapGestures {
-                                onTabChange(GameTab.PUNCH)
-                            }
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "🥊 PUNCH",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (gameTab == GameTab.PUNCH) Color.Black else Color.White
-                    )
+                    // Punch tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (gameTab == GameTab.PUNCH) Color(0xFFf39c12) else Color(0xFF16213e),
+                                shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+                            )
+                            .pointerInput(Unit) {
+                                detectTapGestures {
+                                    onTabChange(GameTab.PUNCH)
+                                }
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🥊 PUNCH",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (gameTab == GameTab.PUNCH) Color.Black else Color.White
+                        )
+                    }
+
+                    // Dart tab
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (gameTab == GameTab.DART) Color(0xFF3498db) else Color(0xFF16213e),
+                                shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
+                            )
+                            .pointerInput(Unit) {
+                                detectTapGestures {
+                                    onTabChange(GameTab.DART)
+                                }
+                            }
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "🎯 DART",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (gameTab == GameTab.DART) Color.Black else Color.White
+                        )
+                    }
                 }
 
-                // Dart tab
-                Box(
+                // Swipe hint
+                Text(
+                    text = "← Swipe to switch →",
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.5f),
                     modifier = Modifier
-                        .weight(1f)
-                        .background(
-                            if (gameTab == GameTab.DART) Color(0xFF3498db) else Color(0xFF16213e),
-                            shape = RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp)
-                        )
-                        .pointerInput(Unit) {
-                            detectTapGestures {
-                                onTabChange(GameTab.DART)
-                            }
-                        }
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            } else {
+                // 다트 전용 타이틀
+                Text(
+                    text = "🎯 DART LEADERBOARD 🎯",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF3498db),
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "🎯 DART",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (gameTab == GameTab.DART) Color.Black else Color.White
-                    )
-                }
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
-
-            // Swipe hint
-            Text(
-                text = "← Swipe to switch →",
-                fontSize = 12.sp,
-                color = Color.White.copy(alpha = 0.5f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
 
             // Leaderboard List
             if (leaderboard.isEmpty()) {
