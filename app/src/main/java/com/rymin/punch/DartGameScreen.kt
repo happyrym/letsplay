@@ -1,5 +1,4 @@
 package com.rymin.punch
-package com.rymin.punch
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -132,19 +131,29 @@ fun DartGameScreen(
     // Name input for result phase
     var playerName by remember { mutableStateOf("") }
 
-    // Timer countdown
+    // Timer countdown - 3개 다트 던지는 총 시간 10초 (THROWING 중에도 계속 흐름)
+    var timerRunning by remember { mutableStateOf(false) }
+    
     LaunchedEffect(gamePhase) {
-        if (gamePhase == DartGamePhase.PLAYING) {
+        if (gamePhase == DartGamePhase.PLAYING && !timerRunning) {
+            timerRunning = true
             timeRemaining = 10
-            while (timeRemaining > 0 && gamePhase == DartGamePhase.PLAYING) {
+        }
+    }
+    
+    LaunchedEffect(timerRunning) {
+        if (timerRunning) {
+            while (timeRemaining > 0 && gamePhase != DartGamePhase.RESULT && gamePhase != DartGamePhase.READY) {
                 delay(1000)
-                if (gamePhase == DartGamePhase.PLAYING) {
+                if (gamePhase != DartGamePhase.RESULT && gamePhase != DartGamePhase.READY) {
                     timeRemaining--
                 }
             }
-            if (gamePhase == DartGamePhase.PLAYING) {
+            // 시간 초과 시 결과 화면으로
+            if (timeRemaining <= 0 && gamePhase != DartGamePhase.RESULT) {
                 gamePhase = DartGamePhase.RESULT
             }
+            timerRunning = false
         }
     }
 
@@ -288,6 +297,7 @@ fun DartGameScreen(
                     playerName = playerName,
                     isTopScore = isTopDartScore,
                     onRestart = {
+                        timerRunning = false
                         gamePhase = DartGamePhase.READY
                         dartsThrown = 0
                         totalScore = 0
@@ -908,11 +918,11 @@ fun drawHoldableDart(drawScope: DrawScope, x: Float, y: Float, scale: Float) {
 fun calculateRealDartScore(normalizedX: Float, normalizedY: Float): DartScore {
     val distance = sqrt(normalizedX * normalizedX + normalizedY * normalizedY)
 
-    // Double and Triple zones expanded by 5%
+    // Standard dartboard zones
     val doubleOuterR = 1.0f
-    val doubleInnerR = 0.90f    // was 0.95f (5% wider)
-    val tripleOuterR = 0.65f    // was 0.60f (5% wider)
-    val tripleInnerR = 0.50f    // was 0.55f (5% wider)
+    val doubleInnerR = 0.95f
+    val tripleOuterR = 0.60f
+    val tripleInnerR = 0.55f
     val bullOuterR = 0.16f
     val bullInnerR = 0.065f
 
@@ -1320,44 +1330,11 @@ fun DartResultRightPanel(
                 )
             }
         } else {
-            // 이름 입력 키패드
+            // 이름 입력 키패드 (이름 표시는 왼쪽 패널에서)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(
-                    text = "🏆 TOP 10! 🏆",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFFFD700)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Enter your name",
-                    fontSize = 16.sp,
-                    color = Color.White.copy(alpha = 0.6f)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 이름 표시
-                Box(
-                    modifier = Modifier
-                        .width(200.dp)
-                        .height(50.dp)
-                        .background(Color(0xFF16213e), RoundedCornerShape(8.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = playerName.ifEmpty { "_" },
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 키패드
+                // 키패드만 표시
                 DartNameKeypad(
                     onString = { str ->
                         if (playerName.length < 10) {
