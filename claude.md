@@ -65,7 +65,21 @@
 - 이름 + 점수(소수점 2자리) 랭킹 표시
 
 ## 프로젝트 구조
-### 서브 모듈 구성
+
+```
+letsplay/
+├── android/           # Android 앱
+│   ├── app/           # 메인 게임 앱
+│   ├── leaderboard/   # 리더보드 디스플레이 앱
+│   └── gradle 설정 파일들
+├── web/               # 웹 게임 (GitHub Pages)
+│   ├── index.html     # 메인 메뉴
+│   ├── punch.html     # 펀치 게임
+│   └── dart.html      # 다트 게임
+└── CLAUDE.md
+```
+
+### Android 앱 (android/)
 1. **메인 게임 앱** (app)
    - **타겟 디바이스: 태블릿 (가로 모드 고정)**
    - 게임 플레이
@@ -81,6 +95,20 @@
    - **Nearby Connections API** (태블릿-폰 직접 연결)
    - 인터넷/공유기 불필요, P2P 통신
    - Wi-Fi Direct + Bluetooth 자동 선택
+
+### 웹 게임 (web/)
+- **기술 스택**: HTML5 Canvas + Vanilla JavaScript
+- **배포**: GitHub Pages
+- **특징**:
+  - 앱 설치 없이 브라우저에서 바로 플레이
+  - PC, 태블릿, 모바일 모두 지원
+  - 로컬 스토리지 기반 리더보드
+
+**GitHub Pages 배포 방법:**
+1. GitHub 저장소 Settings → Pages
+2. Source: Deploy from a branch
+3. Branch: main, Folder: /web
+4. Save → URL 생성됨
 
 ## 현재 진행 상황
 

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Party Games</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 40px;
+        }
+
+        .game-buttons {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 40px 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            text-decoration: none;
+            color: white;
+        }
+
+        .game-card:hover {
+            transform: translateY(-10px);
+            background: rgba(255, 255, 255, 0.15);
+            border-color: #f39c12;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .game-icon {
+            font-size: 5rem;
+            margin-bottom: 15px;
+        }
+
+        .game-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .game-desc {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .punch-card:hover {
+            border-color: #e74c3c;
+        }
+
+        .dart-card:hover {
+            border-color: #27ae60;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 20px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 Party Games</h1>
+        <p class="subtitle">Choose a game to play!</p>
+
+        <div class="game-buttons">
+            <a href="punch.html" class="game-card punch-card">
+                <div class="game-icon">🥊</div>
+                <div class="game-title">Punch Game</div>
+                <div class="game-desc">Drag to punch! Speed + Accuracy</div>
+            </a>
+
+            <a href="dart.html" class="game-card dart-card">
+                <div class="game-icon">🎯</div>
+                <div class="game-title">Dart Game</div>
+                <div class="game-desc">Throw 3 darts in 10 seconds!</div>
+            </a>
+        </div>
+    </div>
+
+    <footer>
+        Made for Party 🎄
+    </footer>
+</body>
+</html>

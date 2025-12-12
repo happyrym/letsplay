@@ -27,22 +27,21 @@
         android:theme="@style/Theme.Punch">
         <activity
             android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.Punch" />
+        <activity
+            android:name=".DartGameActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.Punch">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".DartGameActivity"
-            android:exported="false"
-            android:label="Dart Game"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.Punch" />
     </application>
 
 </manifest>

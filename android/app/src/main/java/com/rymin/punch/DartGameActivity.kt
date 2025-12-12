@@ -1,9 +1,11 @@
 package com.rymin.punch
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.OnBackPressedCallback
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.Surface
@@ -21,6 +23,13 @@ class DartGameActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // 뒤로가기 버튼 막기
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                Toast.makeText(this@DartGameActivity, "😝 메롱~", Toast.LENGTH_SHORT).show()
+            }
+        })
 
         leaderboardRepository = LeaderboardRepository(this)
 

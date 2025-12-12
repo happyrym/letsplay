@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Punch Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            height: 100vh;
+            overflow: hidden;
+            color: white;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .overlay h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 20px rgba(243, 156, 18, 0.5);
+        }
+
+        .overlay p {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f39c12, #e74c3c);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #7f8c8d;
+            color: white;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .score-display {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #f39c12;
+            margin: 20px 0;
+        }
+
+        .input-container {
+            margin: 20px 0;
+        }
+
+        .name-display {
+            font-size: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 30px;
+            border-radius: 10px;
+            min-width: 200px;
+            margin-bottom: 20px;
+        }
+
+        .keyboard {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 20px 0;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .key {
+            width: 44px;
+            height: 44px;
+            border: none;
+            border-radius: 8px;
+            background: #3498db;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .key:hover, .key:active {
+            background: #2980b9;
+            transform: scale(1.1);
+        }
+
+        .key-emoji {
+            background: #e67e22;
+        }
+
+        .key-del {
+            width: 80px;
+            background: #e74c3c;
+        }
+
+        .key-ok {
+            width: 80px;
+            background: #27ae60;
+        }
+
+        .leaderboard {
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 5px 0;
+            border-radius: 8px;
+            min-width: 280px;
+        }
+
+        .leaderboard-item.highlight {
+            background: rgba(243, 156, 18, 0.3);
+            border: 1px solid #f39c12;
+        }
+
+        .rank {
+            font-weight: bold;
+            color: #f39c12;
+            margin-right: 15px;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 50;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <button class="back-btn" onclick="location.href='index.html'">🏠 Home</button>
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Ready Overlay -->
+    <div id="readyOverlay" class="overlay">
+        <h1>🥊 Punch Game</h1>
+        <p>Drag the hammer to the punch machine!</p>
+        <p>Speed + Accuracy = Score (Max 1000)</p>
+        <button class="btn btn-primary" onclick="startGame()">START</button>
+    </div>
+
+    <!-- Result Overlay -->
+    <div id="resultOverlay" class="overlay hidden">
+        <h1>🎉 Result</h1>
+        <div class="score-display" id="finalScore">0.00</div>
+        <div id="nameInputSection" class="hidden">
+            <p>🏆 TOP 10! Enter your name:</p>
+            <div class="name-display" id="nameDisplay">_</div>
+            <div class="keyboard">
+                <div class="keyboard-row" id="row1"></div>
+                <div class="keyboard-row" id="row2"></div>
+                <div class="keyboard-row" id="row3"></div>
+                <div class="keyboard-row" id="row4"></div>
+                <div class="keyboard-row" id="row5"></div>
+                <div class="keyboard-row">
+                    <button class="key key-del" onclick="deleteName()">⌫ DEL</button>
+                    <button class="key key-ok" onclick="saveName()">✓ OK</button>
+                </div>
+            </div>
+        </div>
+        <div id="notTopSection" class="hidden">
+            <p>😢 Not in TOP 10</p>
+        </div>
+        <div id="savedSection" class="hidden">
+            <p>✅ Saved!</p>
+        </div>
+        <div id="leaderboardSection">
+            <h2 style="margin-top: 20px;">🏆 Leaderboard</h2>
+            <div class="leaderboard" id="leaderboard"></div>
+        </div>
+        <div style="margin-top: 20px;">
+            <button class="btn btn-primary" onclick="restartGame()">🔄 Retry</button>
+            <button class="btn btn-secondary" onclick="location.href='index.html'">🏠 Home</button>
+        </div>
+    </div>
+
+    <script>
+        // Game constants
+        const MAX_SCORE = 1000;
+        const SPEED_SCORE_MAX = 400;
+        const SPEED_THRESHOLD = 2; // pixels per ms
+        const ACCURACY_SCORE_MAX = 600;
+        const GAME_TIME = 10;
+
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        // Game state
+        let gamePhase = 'ready'; // ready, playing, result
+        let timeRemaining = GAME_TIME;
+        let score = 0;
+        let timerInterval = null;
+
+        // Hammer state
+        let hammerX, hammerY;
+        let hammerBaseX, hammerBaseY;
+        let hammerAngle = 0;
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let dragStartTime;
+        let currentDragX, currentDragY;
+
+        // Target (punch machine) state
+        let targetX, targetY;
+        let targetWidth, targetHeight;
+
+        // Particles
+        let particles = [];
+
+        // Leaderboard
+        let leaderboard = JSON.parse(localStorage.getItem('punchLeaderboard') || '[]');
+        let playerName = '';
+
+        // Keyboard setup
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+        const emojis = ['🎅', '🎄', '🐾', '⭐', '❄️', '🎁', '🦌', '☃️', '🔔'];
+
+        function setupKeyboard() {
+            document.getElementById('row1').innerHTML = alphabet.slice(0, 7).map(c =>
+                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            ).join('');
+            document.getElementById('row2').innerHTML = alphabet.slice(7, 14).map(c =>
+                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            ).join('');
+            document.getElementById('row3').innerHTML = alphabet.slice(14, 21).map(c =>
+                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            ).join('');
+            document.getElementById('row4').innerHTML = alphabet.slice(21).map(c =>
+                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            ).join('') + emojis.slice(0, 2).map(e =>
+                `<button class="key key-emoji" onclick="addToName('${e}')">${e}</button>`
+            ).join('');
+            document.getElementById('row5').innerHTML = emojis.slice(2).map(e =>
+                `<button class="key key-emoji" onclick="addToName('${e}')">${e}</button>`
+            ).join('');
+        }
+
+        function addToName(char) {
+            if (playerName.length < 10) {
+                playerName += char;
+                updateNameDisplay();
+            }
+        }
+
+        function deleteName() {
+            if (playerName.length > 0) {
+                // Handle emoji (surrogate pairs)
+                const lastChar = playerName.charCodeAt(playerName.length - 1);
+                if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && playerName.length >= 2) {
+                    playerName = playerName.slice(0, -2);
+                } else {
+                    playerName = playerName.slice(0, -1);
+                }
+                updateNameDisplay();
+            }
+        }
+
+        function updateNameDisplay() {
+            document.getElementById('nameDisplay').textContent = playerName || '_';
+        }
+
+        function saveName() {
+            if (playerName.length > 0) {
+                leaderboard.push({ name: playerName, score: score });
+                leaderboard.sort((a, b) => b.score - a.score);
+                leaderboard = leaderboard.slice(0, 10);
+                localStorage.setItem('punchLeaderboard', JSON.stringify(leaderboard));
+
+                document.getElementById('nameInputSection').classList.add('hidden');
+                document.getElementById('savedSection').classList.remove('hidden');
+                updateLeaderboardDisplay();
+            }
+        }
+
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            // Set positions based on screen size
+            hammerBaseX = width * 0.2;
+            hammerBaseY = height * 0.7;
+            hammerX = hammerBaseX;
+            hammerY = hammerBaseY;
+
+            targetX = width * 0.75;
+            targetY = height * 0.5;
+            targetWidth = Math.min(width, height) * 0.25;
+            targetHeight = targetWidth * 1.5;
+        }
+
+        function startGame() {
+            gamePhase = 'playing';
+            timeRemaining = GAME_TIME;
+            score = 0;
+            hammerX = hammerBaseX;
+            hammerY = hammerBaseY;
+            hammerAngle = 0;
+            particles = [];
+
+            document.getElementById('readyOverlay').classList.add('hidden');
+            document.getElementById('resultOverlay').classList.add('hidden');
+
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                if (timeRemaining <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gamePhase = 'result';
+            clearInterval(timerInterval);
+            showResult();
+        }
+
+        function showResult() {
+            document.getElementById('finalScore').textContent = score.toFixed(2);
+            document.getElementById('resultOverlay').classList.remove('hidden');
+
+            playerName = '';
+            updateNameDisplay();
+
+            // Check if top 10
+            const isTopScore = leaderboard.length < 10 || score > leaderboard[leaderboard.length - 1]?.score;
+
+            if (isTopScore && score > 0) {
+                document.getElementById('nameInputSection').classList.remove('hidden');
+                document.getElementById('notTopSection').classList.add('hidden');
+                document.getElementById('savedSection').classList.add('hidden');
+            } else {
+                document.getElementById('nameInputSection').classList.add('hidden');
+                document.getElementById('notTopSection').classList.remove('hidden');
+                document.getElementById('savedSection').classList.add('hidden');
+            }
+
+            updateLeaderboardDisplay();
+        }
+
+        function updateLeaderboardDisplay() {
+            const container = document.getElementById('leaderboard');
+            container.innerHTML = leaderboard.map((entry, i) => `
+                <div class="leaderboard-item ${entry.name === playerName && entry.score === score ? 'highlight' : ''}">
+                    <span><span class="rank">#${i + 1}</span>${entry.name}</span>
+                    <span>${entry.score.toFixed(2)}</span>
+                </div>
+            `).join('');
+        }
+
+        function restartGame() {
+            document.getElementById('resultOverlay').classList.add('hidden');
+            startGame();
+        }
+
+        function calculateScore(speed, accuracy) {
+            // Speed score: 0 or 400 points
+            const speedScore = speed >= SPEED_THRESHOLD ? SPEED_SCORE_MAX : 0;
+
+            // Accuracy score: 0-600 points (center = better)
+            const accuracyScore = accuracy * ACCURACY_SCORE_MAX;
+
+            return Math.min(speedScore + accuracyScore, MAX_SCORE);
+        }
+
+        function createParticles(x, y, count, color) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 4;
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    size: Math.random() * 15 + 5,
+                    color: color
+                });
+            }
+        }
+
+        function updateParticles() {
+            particles = particles.filter(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.3; // gravity
+                p.life -= 0.02;
+                return p.life > 0;
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        function drawHammer(x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+
+            // Handle
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-10, 0, 20, 120);
+
+            // Handle gradient
+            ctx.fillStyle = '#A0522D';
+            ctx.fillRect(-5, 0, 10, 120);
+
+            // Head
+            ctx.fillStyle = '#4a4a4a';
+            ctx.fillRect(-40, -30, 80, 50);
+
+            // Head highlight
+            ctx.fillStyle = '#6a6a6a';
+            ctx.fillRect(-35, -25, 30, 40);
+
+            // Head shadow
+            ctx.fillStyle = '#3a3a3a';
+            ctx.fillRect(5, -25, 30, 40);
+
+            ctx.restore();
+        }
+
+        function drawPunchMachine() {
+            const x = targetX;
+            const y = targetY;
+            const w = targetWidth;
+            const h = targetHeight;
+
+            // Base
+            ctx.fillStyle = '#e74c3c';
+            ctx.fillRect(x - w/2, y - h/2, w, h);
+
+            // Frame
+            ctx.strokeStyle = '#c0392b';
+            ctx.lineWidth = 5;
+            ctx.strokeRect(x - w/2, y - h/2, w, h);
+
+            // Target circle
+            const targetRadius = w * 0.35;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(x, y, targetRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Target rings
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y, targetRadius * 0.7, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(x, y, targetRadius * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Bullseye
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(x, y, targetRadius * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // "PUNCH!" text
+            ctx.fillStyle = '#fff';
+            ctx.font = `bold ${w * 0.15}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('PUNCH!', x, y - h/2 + w * 0.2);
+        }
+
+        function drawUI() {
+            // Timer
+            ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
+            ctx.font = 'bold 72px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(timeRemaining, width / 2, 80);
+
+            // Score
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 48px Arial';
+            ctx.fillText(score.toFixed(2), width / 2, 140);
+
+            // Instructions
+            if (gamePhase === 'playing') {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.font = '18px Arial';
+                ctx.fillText('Drag hammer → Target!', width / 2, height - 30);
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, '#1a1a2e');
+            gradient.addColorStop(1, '#16213e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            if (gamePhase === 'playing') {
+                drawPunchMachine();
+                drawParticles();
+
+                // Draw drag line
+                if (isDragging) {
+                    ctx.strokeStyle = 'rgba(243, 156, 18, 0.5)';
+                    ctx.lineWidth = 5;
+                    ctx.setLineDash([10, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(hammerBaseX, hammerBaseY);
+                    ctx.lineTo(currentDragX, currentDragY);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                drawHammer(hammerX, hammerY, hammerAngle);
+                drawUI();
+            }
+
+            requestAnimationFrame(draw);
+        }
+
+        function handlePointerDown(e) {
+            if (gamePhase !== 'playing') return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+            const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+
+            // Check if touching hammer area
+            const dx = x - hammerX;
+            const dy = y - hammerY;
+            if (Math.sqrt(dx * dx + dy * dy) < 80) {
+                isDragging = true;
+                dragStartX = x;
+                dragStartY = y;
+                dragStartTime = Date.now();
+                currentDragX = x;
+                currentDragY = y;
+            }
+        }
+
+        function handlePointerMove(e) {
+            if (!isDragging) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
+            const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+
+            currentDragX = x;
+            currentDragY = y;
+
+            // Update hammer position
+            hammerX = x;
+            hammerY = y;
+
+            // Calculate angle towards target
+            const dx = targetX - hammerX;
+            const dy = targetY - hammerY;
+            hammerAngle = Math.atan2(dx, -dy);
+            hammerAngle = Math.max(0, Math.min(Math.PI / 2, hammerAngle));
+        }
+
+        function handlePointerUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX || e.changedTouches?.[0]?.clientX) - rect.left;
+            const y = (e.clientY || e.changedTouches?.[0]?.clientY) - rect.top;
+
+            // Calculate speed
+            const elapsed = Date.now() - dragStartTime;
+            const distance = Math.sqrt(
+                Math.pow(x - dragStartX, 2) + Math.pow(y - dragStartY, 2)
+            );
+            const speed = distance / elapsed;
+
+            // Check if hit target
+            const targetRadius = targetWidth * 0.35;
+            const dx = x - targetX;
+            const dy = y - targetY;
+            const distanceToCenter = Math.sqrt(dx * dx + dy * dy);
+
+            if (distanceToCenter < targetRadius * 1.5) {
+                // Hit! Calculate accuracy (1 = center, 0 = edge)
+                const accuracy = Math.max(0, 1 - distanceToCenter / targetRadius);
+                const newScore = calculateScore(speed, accuracy);
+
+                if (newScore > score) {
+                    score = newScore;
+                }
+
+                // Create particles
+                const particleColor = score >= 800 ? '#FFD700' : score >= 500 ? '#f39c12' : '#e74c3c';
+                createParticles(x, y, 20, particleColor);
+            }
+
+            // Reset hammer position
+            hammerX = hammerBaseX;
+            hammerY = hammerBaseY;
+            hammerAngle = 0;
+        }
+
+        // Event listeners
+        canvas.addEventListener('mousedown', handlePointerDown);
+        canvas.addEventListener('mousemove', handlePointerMove);
+        canvas.addEventListener('mouseup', handlePointerUp);
+        canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
+        canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
+        canvas.addEventListener('touchend', handlePointerUp);
+
+        window.addEventListener('resize', resize);
+
+        // Initialize
+        resize();
+        setupKeyboard();
+        updateParticles();
+        draw();
+    </script>
+</body>
+</html>

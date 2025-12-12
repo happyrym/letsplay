@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
         nearbyManager = NearbyConnectionsManager(this)
         leaderboardRepo = LeaderboardRepository(this)
 
-        requestNearbyPermissions()
+        requtesestNearbyPermissions()
 
         setContent {
             PunchTheme {
