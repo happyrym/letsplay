@@ -203,6 +203,7 @@
 </head>
 <body>
     <button class="back-btn" onclick="location.href='index.html'">🏠 Home</button>
+    <a href="shame.html" style="position:fixed;top:20px;right:20px;z-index:50;padding:10px 20px;background:rgba(231,76,60,0.3);border:none;border-radius:8px;color:#e74c3c;text-decoration:none;font-size:1rem;">💀 Wall of Shame</a>
     <canvas id="gameCanvas"></canvas>
 
     <!-- Ready Overlay -->
@@ -249,6 +250,7 @@
         </div>
     </div>
 
+    <script src="abuser.js"></script>
     <script>
         // Dartboard constants
         const DART_NUMBERS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
@@ -342,6 +344,18 @@
 
         function saveName() {
             if (playerName.length > 0) {
+                // 어뷰저 검증 (다트 최대 점수: 180 = Triple 20 x 3)
+                const MAX_DART_SCORE = 180;
+                const validation = AbuserDetector.validateScore(totalScore, 'Dart', MAX_DART_SCORE);
+                if (!validation.valid) {
+                    AbuserDetector.registerAbuser(playerName, validation.reason, {
+                        attemptedScore: totalScore,
+                        game: 'Dart',
+                        detail: validation.detail
+                    });
+                    return; // 저장 안 함
+                }
+
                 leaderboard.push({ name: playerName, score: totalScore });
                 leaderboard.sort((a, b) => b.score - a.score);
                 leaderboard = leaderboard.slice(0, 10);
@@ -377,6 +391,10 @@
             thrownDarts = [];
             particles = [];
             flyingDart = null;
+
+            // 어뷰저 탐지: 게임 시작 기록
+            AbuserDetector.resetGameState();
+            AbuserDetector.startGame();
 
             document.getElementById('readyOverlay').classList.add('hidden');
             document.getElementById('resultOverlay').classList.add('hidden');
@@ -949,6 +967,9 @@
             const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
             const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
 
+            // 어뷰저 탐지: 인터랙션 기록
+            AbuserDetector.recordInteraction();
+
             const dx = x - dartRestX;
             const dy = y - dartRestY;
             if (Math.sqrt(dx * dx + dy * dy) < 80) {
@@ -958,6 +979,7 @@
                 dragStartTime = Date.now();
                 currentDragX = x;
                 currentDragY = y;
+                AbuserDetector.recordDrag();
             }
         }
 

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Wall of Shame</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a0a0a 0%, #2d1515 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 30px 0;
+            color: #e74c3c;
+            text-shadow: 0 0 20px rgba(231, 76, 60, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .shame-container {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .shame-card {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.2), rgba(0, 0, 0, 0.3));
+            border: 2px solid #e74c3c;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .shame-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .shame-name {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .shame-badge {
+            font-size: 2rem;
+        }
+
+        .shame-reason {
+            font-size: 0.95rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+        }
+
+        .shame-details {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .shame-time {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            margin: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-home {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .buttons {
+            margin-top: 30px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px 25px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #e74c3c;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .reason-icon {
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <h1>💀 Wall of Shame 💀</h1>
+    <p class="subtitle">These cheaters tried to ruin our Christmas party!</p>
+
+    <div class="stats">
+        <div class="stat-box">
+            <div class="stat-number" id="totalAbusers">0</div>
+            <div class="stat-label">Total Cheaters</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-number" id="todayAbusers">0</div>
+            <div class="stat-label">Today</div>
+        </div>
+    </div>
+
+    <div class="shame-container" id="shameList">
+        <!-- Populated by JS -->
+    </div>
+
+    <div class="buttons">
+        <a href="index.html" class="btn btn-home">🏠 Back to Games</a>
+        <button class="btn btn-clear" onclick="clearShame()" style="display:none" id="clearBtn">🗑️ Clear All</button>
+    </div>
+
+    <script>
+        const SHAME_KEY = 'wallOfShame';
+        const REASONS = {
+            'honeypot': { icon: '🍯', text: 'Used cheat function', detail: 'Called hidden honeypot function' },
+            'impossible_score': { icon: '📊', text: 'Impossible score', detail: 'Submitted score beyond maximum' },
+            'no_gameplay': { icon: '🎮', text: 'No gameplay detected', detail: 'Score submitted without playing' },
+            'speed_hack': { icon: '⚡', text: 'Speed hack', detail: 'Game completed impossibly fast' },
+            'console_manipulation': { icon: '💻', text: 'Console manipulation', detail: 'Detected developer tools abuse' }
+        };
+
+        function getShameList() {
+            return JSON.parse(localStorage.getItem(SHAME_KEY) || '[]');
+        }
+
+        function renderShameList() {
+            const list = getShameList();
+            const container = document.getElementById('shameList');
+            const today = new Date().toDateString();
+
+            document.getElementById('totalAbusers').textContent = list.length;
+            document.getElementById('todayAbusers').textContent =
+                list.filter(a => new Date(a.timestamp).toDateString() === today).length;
+
+            // Show clear button with secret click sequence
+            let clickCount = 0;
+            document.querySelector('h1').addEventListener('click', () => {
+                clickCount++;
+                if (clickCount >= 5) {
+                    document.getElementById('clearBtn').style.display = 'inline-block';
+                }
+            });
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">😇</div>
+                        <p>No cheaters caught yet...</p>
+                        <p>Everyone is playing fair! (or are they? 🤔)</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by timestamp, newest first
+            list.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            container.innerHTML = list.map((abuser, index) => {
+                const reason = REASONS[abuser.reason] || { icon: '❓', text: 'Unknown', detail: abuser.reason };
+                const date = new Date(abuser.timestamp);
+                const badges = ['💀', '🚫', '👎', '🤡', '💩'][index % 5];
+
+                return `
+                    <div class="shame-card">
+                        <div class="shame-header">
+                            <span class="shame-name">${escapeHtml(abuser.name || 'Anonymous Cheater')}</span>
+                            <span class="shame-badge">${badges}</span>
+                        </div>
+                        <div class="shame-reason">
+                            <span class="reason-icon">${reason.icon}</span>
+                            ${reason.text}
+                        </div>
+                        <div class="shame-details">${reason.detail}</div>
+                        ${abuser.attemptedScore ? `<div class="shame-details">Attempted score: ${abuser.attemptedScore}</div>` : ''}
+                        ${abuser.game ? `<div class="shame-details">Game: ${abuser.game}</div>` : ''}
+                        <div class="shame-time">${date.toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearShame() {
+            if (confirm('Clear all shame records?')) {
+                localStorage.removeItem(SHAME_KEY);
+                renderShameList();
+            }
+        }
+
+        // Initialize
+        renderShameList();
+    </script>
+</body>
+</html>

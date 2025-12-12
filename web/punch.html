@@ -197,6 +197,7 @@
 </head>
 <body>
     <button class="back-btn" onclick="location.href='index.html'">🏠 Home</button>
+    <a href="shame.html" style="position:fixed;top:20px;right:20px;z-index:50;padding:10px 20px;background:rgba(231,76,60,0.3);border:none;border-radius:8px;color:#e74c3c;text-decoration:none;font-size:1rem;">💀 Wall of Shame</a>
     <canvas id="gameCanvas"></canvas>
 
     <!-- Ready Overlay -->
@@ -242,6 +243,7 @@
         </div>
     </div>
 
+    <script src="abuser.js"></script>
     <script>
         // Game constants
         const MAX_SCORE = 1000;
@@ -331,6 +333,17 @@
 
         function saveName() {
             if (playerName.length > 0) {
+                // 어뷰저 검증
+                const validation = AbuserDetector.validateScore(score, 'Punch', MAX_SCORE);
+                if (!validation.valid) {
+                    AbuserDetector.registerAbuser(playerName, validation.reason, {
+                        attemptedScore: score,
+                        game: 'Punch',
+                        detail: validation.detail
+                    });
+                    return; // 저장 안 함
+                }
+
                 leaderboard.push({ name: playerName, score: score });
                 leaderboard.sort((a, b) => b.score - a.score);
                 leaderboard = leaderboard.slice(0, 10);
@@ -368,6 +381,10 @@
             hammerY = hammerBaseY;
             hammerAngle = 0;
             particles = [];
+
+            // 어뷰저 탐지: 게임 시작 기록
+            AbuserDetector.resetGameState();
+            AbuserDetector.startGame();
 
             document.getElementById('readyOverlay').classList.add('hidden');
             document.getElementById('resultOverlay').classList.add('hidden');
@@ -604,6 +621,9 @@
             const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
             const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
 
+            // 어뷰저 탐지: 인터랙션 기록
+            AbuserDetector.recordInteraction();
+
             // Check if touching hammer area
             const dx = x - hammerX;
             const dy = y - hammerY;
@@ -614,6 +634,7 @@
                 dragStartTime = Date.now();
                 currentDragX = x;
                 currentDragY = y;
+                AbuserDetector.recordDrag();
             }
         }
 
