@@ -344,6 +344,9 @@
 
         function saveName() {
             if (playerName.length > 0) {
+                // 0점은 저장 안 함
+                if (totalScore <= 0) return;
+
                 // 어뷰저 검증 (다트 최대 점수: 180 = Triple 20 x 3)
                 const MAX_DART_SCORE = 180;
                 const validation = AbuserDetector.validateScore(totalScore, 'Dart', MAX_DART_SCORE);

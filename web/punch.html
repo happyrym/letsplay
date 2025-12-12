@@ -333,6 +333,9 @@
 
         function saveName() {
             if (playerName.length > 0) {
+                // 0점은 저장 안 함
+                if (score <= 0) return;
+
                 // 어뷰저 검증
                 const validation = AbuserDetector.validateScore(score, 'Punch', MAX_SCORE);
                 if (!validation.valid) {
