@@ -222,12 +222,32 @@
     <a href="shame.html" style="position:fixed;top:20px;right:20px;z-index:50;padding:10px 20px;background:rgba(231,76,60,0.3);border:none;border-radius:8px;color:#e74c3c;text-decoration:none;font-size:1rem;">💀 Wall of Shame</a>
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Ready Overlay -->
-    <div id="readyOverlay" class="overlay">
+    <!-- Name Input Overlay (첫 진입 시) -->
+    <div id="nameOverlay" class="overlay">
         <h1>🎯 Dart Game</h1>
+        <p>Enter your name to start!</p>
+        <div class="name-display" id="nameInputDisplay">_</div>
+        <div class="keyboard">
+            <div class="keyboard-row" id="nameRow1"></div>
+            <div class="keyboard-row" id="nameRow2"></div>
+            <div class="keyboard-row" id="nameRow3"></div>
+            <div class="keyboard-row" id="nameRow4"></div>
+            <div class="keyboard-row" id="nameRow5"></div>
+            <div class="keyboard-row">
+                <button class="key key-del" onclick="deleteNameInput()">⌫ DEL</button>
+                <button class="key key-ok" onclick="confirmName()">✓ OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ready Overlay -->
+    <div id="readyOverlay" class="overlay hidden">
+        <h1>🎯 Dart Game</h1>
+        <p>Welcome, <span id="playerNameDisplay"></span>!</p>
         <p>Grab the dart and swipe upward to throw!</p>
         <p>3 darts in 10 seconds</p>
         <button class="btn btn-primary" onclick="startGame()">START</button>
+        <button class="btn btn-secondary" onclick="changeName()">✏️ Change Name</button>
     </div>
 
     <!-- Result Overlay -->
@@ -235,27 +255,7 @@
         <h1>🎯 Result</h1>
         <div class="dart-scores" id="dartScores"></div>
         <div class="score-display" id="finalScore">0</div>
-        <div id="nameInputSection" class="hidden">
-            <p>🏆 TOP 10! Enter your name:</p>
-            <div class="name-display" id="nameDisplay">_</div>
-            <div class="keyboard">
-                <div class="keyboard-row" id="row1"></div>
-                <div class="keyboard-row" id="row2"></div>
-                <div class="keyboard-row" id="row3"></div>
-                <div class="keyboard-row" id="row4"></div>
-                <div class="keyboard-row" id="row5"></div>
-                <div class="keyboard-row">
-                    <button class="key key-del" onclick="deleteName()">⌫ DEL</button>
-                    <button class="key key-ok" onclick="saveName()">✓ OK</button>
-                </div>
-            </div>
-        </div>
-        <div id="notTopSection" class="hidden">
-            <p>😢 Not in TOP 10</p>
-        </div>
-        <div id="savedSection" class="hidden">
-            <p>✅ Saved!</p>
-        </div>
+        <div id="saveStatus"></div>
         <div id="leaderboardSection">
             <h2 style="margin-top: 20px;">🏆 Leaderboard</h2>
             <div class="leaderboard" id="leaderboard"></div>
@@ -309,7 +309,8 @@
 
         // Leaderboard (Firebase)
         let leaderboard = [];
-        let playerName = '';
+        let playerName = localStorage.getItem('dartPlayerName') || '';
+        let nameInputTemp = '';
 
         // Firebase 실시간 리더보드 구독
         function subscribeToLeaderboard() {
@@ -336,89 +337,112 @@
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
         const emojis = ['🎅', '🎄', '🐾', '⭐', '❄️', '🎁', '🦌', '☃️', '🔔'];
 
-        function setupKeyboard() {
-            document.getElementById('row1').innerHTML = alphabet.slice(0, 7).map(c =>
-                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+        function setupNameKeyboard() {
+            document.getElementById('nameRow1').innerHTML = alphabet.slice(0, 7).map(c =>
+                `<button class="key" onclick="addToNameInput('${c}')">${c}</button>`
             ).join('');
-            document.getElementById('row2').innerHTML = alphabet.slice(7, 14).map(c =>
-                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            document.getElementById('nameRow2').innerHTML = alphabet.slice(7, 14).map(c =>
+                `<button class="key" onclick="addToNameInput('${c}')">${c}</button>`
             ).join('');
-            document.getElementById('row3').innerHTML = alphabet.slice(14, 21).map(c =>
-                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            document.getElementById('nameRow3').innerHTML = alphabet.slice(14, 21).map(c =>
+                `<button class="key" onclick="addToNameInput('${c}')">${c}</button>`
             ).join('');
-            document.getElementById('row4').innerHTML = alphabet.slice(21).map(c =>
-                `<button class="key" onclick="addToName('${c}')">${c}</button>`
+            document.getElementById('nameRow4').innerHTML = alphabet.slice(21).map(c =>
+                `<button class="key" onclick="addToNameInput('${c}')">${c}</button>`
             ).join('') + emojis.slice(0, 2).map(e =>
-                `<button class="key key-emoji" onclick="addToName('${e}')">${e}</button>`
+                `<button class="key key-emoji" onclick="addToNameInput('${e}')">${e}</button>`
             ).join('');
-            document.getElementById('row5').innerHTML = emojis.slice(2).map(e =>
-                `<button class="key key-emoji" onclick="addToName('${e}')">${e}</button>`
+            document.getElementById('nameRow5').innerHTML = emojis.slice(2).map(e =>
+                `<button class="key key-emoji" onclick="addToNameInput('${e}')">${e}</button>`
             ).join('');
         }
 
-        function addToName(char) {
-            if (playerName.length < 10) {
-                playerName += char;
-                updateNameDisplay();
+        function addToNameInput(char) {
+            if (nameInputTemp.length < 10) {
+                nameInputTemp += char;
+                updateNameInputDisplay();
             }
         }
 
-        function deleteName() {
-            if (playerName.length > 0) {
-                const lastChar = playerName.charCodeAt(playerName.length - 1);
-                if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && playerName.length >= 2) {
-                    playerName = playerName.slice(0, -2);
+        function deleteNameInput() {
+            if (nameInputTemp.length > 0) {
+                const lastChar = nameInputTemp.charCodeAt(nameInputTemp.length - 1);
+                if (lastChar >= 0xDC00 && lastChar <= 0xDFFF && nameInputTemp.length >= 2) {
+                    nameInputTemp = nameInputTemp.slice(0, -2);
                 } else {
-                    playerName = playerName.slice(0, -1);
+                    nameInputTemp = nameInputTemp.slice(0, -1);
                 }
-                updateNameDisplay();
+                updateNameInputDisplay();
             }
         }
 
-        function updateNameDisplay() {
-            document.getElementById('nameDisplay').textContent = playerName || '_';
+        function updateNameInputDisplay() {
+            document.getElementById('nameInputDisplay').textContent = nameInputTemp || '_';
         }
 
-        async function saveName() {
-            if (playerName.length > 0) {
-                // 0점은 저장 안 함
-                if (totalScore <= 0) return;
+        function confirmName() {
+            if (nameInputTemp.length > 0) {
+                playerName = nameInputTemp;
+                localStorage.setItem('dartPlayerName', playerName);
+                document.getElementById('nameOverlay').classList.add('hidden');
+                document.getElementById('readyOverlay').classList.remove('hidden');
+                document.getElementById('playerNameDisplay').textContent = playerName;
+            }
+        }
 
-                // 어뷰저 검증 (다트 최대 점수: 180 = Triple 20 x 3)
-                const MAX_DART_SCORE = 180;
-                const validation = AbuserDetector.validateScore(totalScore, 'Dart', MAX_DART_SCORE);
-                if (!validation.valid) {
-                    AbuserDetector.registerAbuser(playerName, validation.reason, {
-                        attemptedScore: totalScore,
-                        game: 'Dart',
-                        detail: validation.detail
-                    });
-                    return; // 저장 안 함
-                }
+        function changeName() {
+            nameInputTemp = playerName;
+            updateNameInputDisplay();
+            document.getElementById('readyOverlay').classList.add('hidden');
+            document.getElementById('nameOverlay').classList.remove('hidden');
+        }
 
-                try {
-                    // Firebase에 저장
-                    await db.collection('dart_scores').add({
-                        name: playerName,
-                        score: totalScore,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+        // 초기화: 이름이 있으면 바로 게임 화면으로
+        function initGame() {
+            setupNameKeyboard();
+            if (playerName) {
+                document.getElementById('nameOverlay').classList.add('hidden');
+                document.getElementById('readyOverlay').classList.remove('hidden');
+                document.getElementById('playerNameDisplay').textContent = playerName;
+            }
+        }
 
-                    document.getElementById('nameInputSection').classList.add('hidden');
-                    document.getElementById('savedSection').classList.remove('hidden');
-                    // 리더보드는 실시간 구독으로 자동 업데이트됨
-                } catch (error) {
-                    console.error('Firebase save error:', error);
-                    // fallback to localStorage
-                    leaderboard.push({ name: playerName, score: totalScore });
-                    leaderboard.sort((a, b) => b.score - a.score);
-                    leaderboard = leaderboard.slice(0, 10);
-                    localStorage.setItem('dartLeaderboard', JSON.stringify(leaderboard));
+        async function autoSaveScore() {
+            // 0점은 저장 안 함
+            if (totalScore <= 0) {
+                document.getElementById('saveStatus').innerHTML = '<p style="color:#888">0점은 저장되지 않습니다</p>';
+                return;
+            }
 
-                    document.getElementById('nameInputSection').classList.add('hidden');
-                    document.getElementById('savedSection').classList.remove('hidden');
-                    updateLeaderboardDisplay();
-                }
+            // 어뷰저 검증 (다트 최대 점수: 180 = Triple 20 x 3)
+            const MAX_DART_SCORE = 180;
+            const validation = AbuserDetector.validateScore(totalScore, 'Dart', MAX_DART_SCORE);
+            if (!validation.valid) {
+                AbuserDetector.registerAbuser(playerName, validation.reason, {
+                    attemptedScore: totalScore,
+                    game: 'Dart',
+                    detail: validation.detail
+                });
+                return;
+            }
+
+            try {
+                // Firebase에 저장
+                await db.collection('dart_scores').add({
+                    name: playerName,
+                    score: totalScore,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                document.getElementById('saveStatus').innerHTML = `<p style="color:#27ae60">✅ ${playerName}님 점수 저장됨!</p>`;
+            } catch (error) {
+                console.error('Firebase save error:', error);
+                // fallback to localStorage
+                leaderboard.push({ name: playerName, score: totalScore });
+                leaderboard.sort((a, b) => b.score - a.score);
+                leaderboard = leaderboard.slice(0, 10);
+                localStorage.setItem('dartLeaderboard', JSON.stringify(leaderboard));
+                document.getElementById('saveStatus').innerHTML = `<p style="color:#f39c12">✅ ${playerName}님 점수 저장됨 (로컬)</p>`;
+                updateLeaderboardDisplay();
             }
         }
 
@@ -481,20 +505,8 @@
 
             document.getElementById('resultOverlay').classList.remove('hidden');
 
-            playerName = '';
-            updateNameDisplay();
-
-            const isTopScore = leaderboard.length < 10 || totalScore > (leaderboard[leaderboard.length - 1]?.score || 0);
-
-            if (isTopScore && totalScore > 0) {
-                document.getElementById('nameInputSection').classList.remove('hidden');
-                document.getElementById('notTopSection').classList.add('hidden');
-                document.getElementById('savedSection').classList.add('hidden');
-            } else {
-                document.getElementById('nameInputSection').classList.add('hidden');
-                document.getElementById('notTopSection').classList.remove('hidden');
-                document.getElementById('savedSection').classList.add('hidden');
-            }
+            // 자동 저장
+            autoSaveScore();
 
             updateLeaderboardDisplay();
         }
@@ -1074,7 +1086,7 @@
 
         // Initialize
         resize();
-        setupKeyboard();
+        initGame();
         draw();
     </script>
 </body>
