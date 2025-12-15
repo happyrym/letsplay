@@ -170,7 +170,10 @@ const AbuserDetector = {
         started: false,
         startTime: 0,
         interactions: 0,
-        dragEvents: 0
+        dragEvents: 0,
+        touchPoints: [],      // 터치 좌표 기록
+        dragPaths: [],        // 드래그 궤적 기록
+        touchRadii: []        // 터치 영역 크기 기록
     },
 
     resetGameState() {
@@ -178,7 +181,10 @@ const AbuserDetector = {
             started: false,
             startTime: 0,
             interactions: 0,
-            dragEvents: 0
+            dragEvents: 0,
+            touchPoints: [],
+            dragPaths: [],
+            touchRadii: []
         };
     },
 
@@ -193,6 +199,113 @@ const AbuserDetector = {
 
     recordDrag() {
         this.gameState.dragEvents++;
+    },
+
+    // 터치 좌표 기록
+    recordTouch(x, y, radiusX = 0, radiusY = 0) {
+        this.gameState.touchPoints.push({ x, y, time: Date.now() });
+        this.gameState.touchRadii.push({ radiusX, radiusY });
+    },
+
+    // 드래그 경로 기록 (여러 포인트)
+    recordDragPath(points) {
+        if (points && points.length > 0) {
+            this.gameState.dragPaths.push(points);
+        }
+    },
+
+    // 터치 좌표 분산 계산
+    calculateTouchVariance() {
+        const points = this.gameState.touchPoints;
+        if (points.length < 3) return { valid: true };
+
+        // X, Y 각각의 분산 계산
+        const xValues = points.map(p => p.x);
+        const yValues = points.map(p => p.y);
+
+        const xMean = xValues.reduce((a, b) => a + b, 0) / xValues.length;
+        const yMean = yValues.reduce((a, b) => a + b, 0) / yValues.length;
+
+        const xVariance = xValues.reduce((sum, x) => sum + Math.pow(x - xMean, 2), 0) / xValues.length;
+        const yVariance = yValues.reduce((sum, y) => sum + Math.pow(y - yMean, 2), 0) / yValues.length;
+
+        // 분산이 거의 0이면 봇 의심 (항상 같은 위치 터치)
+        if (xVariance < 1 && yVariance < 1) {
+            return {
+                valid: false,
+                reason: 'bot_touch_pattern',
+                detail: `Touch variance too low (x: ${xVariance.toFixed(2)}, y: ${yVariance.toFixed(2)})`
+            };
+        }
+
+        return { valid: true };
+    },
+
+    // 드래그 궤적 직선도 분석
+    analyzeDragLinearity() {
+        const paths = this.gameState.dragPaths;
+        if (paths.length < 1) return { valid: true };
+
+        let perfectLineCount = 0;
+
+        for (const path of paths) {
+            if (path.length < 5) continue;
+
+            // 시작점과 끝점을 잇는 직선으로부터의 평균 거리 계산
+            const start = path[0];
+            const end = path[path.length - 1];
+
+            const lineLength = Math.sqrt(Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2));
+            if (lineLength < 50) continue; // 너무 짧은 드래그는 무시
+
+            let totalDeviation = 0;
+            for (let i = 1; i < path.length - 1; i++) {
+                const point = path[i];
+                // 점과 직선 사이의 거리
+                const deviation = Math.abs(
+                    (end.y - start.y) * point.x - (end.x - start.x) * point.y + end.x * start.y - end.y * start.x
+                ) / lineLength;
+                totalDeviation += deviation;
+            }
+
+            const avgDeviation = totalDeviation / (path.length - 2);
+
+            // 평균 편차가 2픽셀 미만이면 완벽한 직선 (봇 의심)
+            if (avgDeviation < 2) {
+                perfectLineCount++;
+            }
+        }
+
+        // 모든 드래그가 완벽한 직선이면 봇
+        if (paths.length >= 2 && perfectLineCount === paths.length) {
+            return {
+                valid: false,
+                reason: 'bot_drag_pattern',
+                detail: `All ${paths.length} drags are perfect lines`
+            };
+        }
+
+        return { valid: true };
+    },
+
+    // 가상 터치 감지 (radiusX/Y가 항상 0)
+    detectVirtualTouch() {
+        const radii = this.gameState.touchRadii;
+        if (radii.length < 3) return { valid: true };
+
+        const zeroRadiusCount = radii.filter(r => r.radiusX === 0 && r.radiusY === 0).length;
+        const zeroRatio = zeroRadiusCount / radii.length;
+
+        // 모든 터치가 radius 0이면 가상 터치 (봇 의심)
+        if (zeroRatio === 1 && radii.length >= 5) {
+            return {
+                valid: false,
+                reason: 'virtual_touch',
+                detail: `All ${radii.length} touches have zero radius (simulated)`
+            };
+        }
+
+        return { valid: true };
     },
 
     // 점수 검증
@@ -243,6 +356,24 @@ const AbuserDetector = {
                 reason: 'no_gameplay',
                 detail: 'No interactions recorded'
             });
+        }
+
+        // 6. 터치 좌표 분산 체크 (항상 같은 위치면 봇)
+        const touchVariance = this.calculateTouchVariance();
+        if (!touchVariance.valid) {
+            validations.push(touchVariance);
+        }
+
+        // 7. 드래그 궤적 직선도 체크 (완벽한 직선이면 봇)
+        const dragLinearity = this.analyzeDragLinearity();
+        if (!dragLinearity.valid) {
+            validations.push(dragLinearity);
+        }
+
+        // 8. 가상 터치 감지 (radiusX/Y가 항상 0이면 봇)
+        const virtualTouch = this.detectVirtualTouch();
+        if (!virtualTouch.valid) {
+            validations.push(virtualTouch);
         }
 
         return validations.length === 0 ? { valid: true } : validations[0];

@@ -1027,14 +1027,21 @@
             requestAnimationFrame(draw);
         }
 
+        // 드래그 경로 추적용
+        let currentDragPath = [];
+
         function handlePointerDown(e) {
             if (gamePhase !== 'playing' || dartsThrown >= MAX_DARTS || flyingDart) return;
 
             const rect = canvas.getBoundingClientRect();
-            const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
-            const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+            const touch = e.touches?.[0];
+            const x = (e.clientX || touch?.clientX) - rect.left;
+            const y = (e.clientY || touch?.clientY) - rect.top;
 
-            // 어뷰저 탐지: 인터랙션 기록
+            // 어뷰저 탐지: 터치 기록 (radiusX/Y 포함)
+            const radiusX = touch?.radiusX || 0;
+            const radiusY = touch?.radiusY || 0;
+            AbuserDetector.recordTouch(x, y, radiusX, radiusY);
             AbuserDetector.recordInteraction();
 
             const dx = x - dartRestX;
@@ -1046,6 +1053,7 @@
                 dragStartTime = Date.now();
                 currentDragX = x;
                 currentDragY = y;
+                currentDragPath = [{ x, y }]; // 드래그 경로 시작
                 AbuserDetector.recordDrag();
             }
         }
@@ -1059,6 +1067,9 @@
 
             currentDragX = x;
             currentDragY = y;
+
+            // 드래그 경로에 포인트 추가
+            currentDragPath.push({ x, y });
         }
 
         function handlePointerUp(e) {
@@ -1067,6 +1078,11 @@
             const rect = canvas.getBoundingClientRect();
             const x = (e.clientX || e.changedTouches?.[0]?.clientX) - rect.left;
             const y = (e.clientY || e.changedTouches?.[0]?.clientY) - rect.top;
+
+            // 드래그 경로 마무리 및 기록
+            currentDragPath.push({ x, y });
+            AbuserDetector.recordDragPath(currentDragPath);
+            currentDragPath = [];
 
             const elapsed = Date.now() - dragStartTime;
             processSwipe(dragStartX, dragStartY, x, y, elapsed);
