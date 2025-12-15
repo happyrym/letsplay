@@ -1,14 +1,12 @@
 package com.rymin.punch.leaderboard
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
 import androidx.compose.animation.core.*
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -37,8 +35,6 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 import kotlin.random.Random
-import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
@@ -82,26 +78,32 @@ fun getWeaponDrawable(weaponType: String): Int {
 }
 
 class LeaderboardActivity : ComponentActivity() {
-    private lateinit var nearbyClient: NearbyConnectionsClient
-
-    private val requestPermissionsLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        if (permissions.all { it.value }) {
-            startNearbyDiscovery()
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        nearbyClient = NearbyConnectionsClient(this)
-        requestNearbyPermissions()
-
         setContent {
             LeaderboardTheme {
-                val leaderboardData by nearbyClient.leaderboardDataFlow.collectAsState()
-                val isConnected by nearbyClient.connectionStatus.collectAsState()
+                // Firebase 실시간 데이터
+                var leaderboardData by remember { mutableStateOf(LeaderboardData()) }
+                var isConnected by remember { mutableStateOf(false) }
+
+                // Firebase 실시간 구독
+                LaunchedEffect(Unit) {
+                    FirebaseRepository.getTopScoresFlow(10).collectLatest { scores ->
+                        isConnected = true
+                        leaderboardData = LeaderboardData(
+                            dartLeaderboard = scores.map { entry ->
+                                LeaderboardEntry(
+                                    name = entry.name,
+                                    score = entry.score.toDouble(),
+                                    gameType = "DART",
+                                    timestamp = entry.timestamp
+                                )
+                            }
+                        )
+                    }
+                }
 
                 DualLeaderboardScreen(
                     leaderboardData = leaderboardData,
@@ -109,44 +111,6 @@ class LeaderboardActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    private fun requestNearbyPermissions() {
-        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            arrayOf(
-                Manifest.permission.BLUETOOTH_ADVERTISE,
-                Manifest.permission.BLUETOOTH_CONNECT,
-                Manifest.permission.BLUETOOTH_SCAN,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.NEARBY_WIFI_DEVICES
-            )
-        } else {
-            arrayOf(
-                Manifest.permission.BLUETOOTH,
-                Manifest.permission.BLUETOOTH_ADMIN,
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        }
-
-        val permissionsToRequest = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
-        }
-
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionsLauncher.launch(permissionsToRequest.toTypedArray())
-        } else {
-            startNearbyDiscovery()
-        }
-    }
-
-    private fun startNearbyDiscovery() {
-        nearbyClient.startDiscovery()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        nearbyClient.disconnect()
     }
 }
 
