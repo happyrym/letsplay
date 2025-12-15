@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlin.math.*
+import com.rymin.punch.data.AbuserDetector
 
 // Standard dartboard number sequence (clockwise from top)
 val DART_NUMBERS = listOf(20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5)
@@ -107,6 +108,9 @@ fun DartGameScreen(
     var swipeStartTime by remember { mutableStateOf(0L) }
     var isDraggingDart by remember { mutableStateOf(false) }
     var dartDragOffset by remember { mutableStateOf(Offset.Zero) }
+
+    // Touch tracking for abuser detection
+    var currentDragPath by remember { mutableStateOf<MutableList<AbuserDetector.TouchPoint>>(mutableListOf()) }
 
     // Game area size (right half)
     var gameAreaSize by remember { mutableStateOf(Size.Zero) }
@@ -305,6 +309,8 @@ fun DartGameScreen(
                         timeRemaining = 10
                         lastScore = null
                         playerName = ""
+                        // Reset abuser detection
+                        AbuserDetector.resetGameState()
                     },
                     onBack = onBack,
                     onResetLeaderboard = onResetLeaderboard
@@ -370,7 +376,16 @@ fun DartGameScreen(
                                                 currentSwipe = offset
                                                 if (gamePhase == DartGamePhase.READY) {
                                                     gamePhase = DartGamePhase.PLAYING
+                                                    // Start abuser detection tracking
+                                                    AbuserDetector.resetGameState()
+                                                    AbuserDetector.startGame()
                                                 }
+                                                // Record touch for abuser detection
+                                                AbuserDetector.recordTouch(offset.x, offset.y)
+                                                AbuserDetector.recordInteraction()
+                                                currentDragPath = mutableListOf(
+                                                    AbuserDetector.TouchPoint(offset.x, offset.y)
+                                                )
                                             }
                                         },
                                         onDrag = { change, _ ->
@@ -378,6 +393,10 @@ fun DartGameScreen(
                                                 change.consume()
                                                 dartDragOffset = change.position
                                                 currentSwipe = change.position
+                                                // Record drag path
+                                                currentDragPath.add(
+                                                    AbuserDetector.TouchPoint(change.position.x, change.position.y)
+                                                )
                                             }
                                         },
                                         onDragEnd = {
@@ -393,12 +412,16 @@ fun DartGameScreen(
                                                         val velocity = distance / elapsed
                                                         val angle = atan2(dy, dx)
                                                         processSwipe(SwipeData(start.x, start.y, end.x, end.y, velocity, angle))
+                                                        // Record drag for abuser detection
+                                                        AbuserDetector.recordDrag()
+                                                        AbuserDetector.recordDragPath(currentDragPath.toList())
                                                     }
                                                 }
                                                 isDraggingDart = false
                                                 dartDragOffset = Offset.Zero
                                                 swipeStart = null
                                                 currentSwipe = null
+                                                currentDragPath = mutableListOf()
                                             }
                                         }
                                     )

@@ -1,6 +1,7 @@
 package com.rymin.punch
 
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,13 +13,22 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.lifecycleScope
+import com.rymin.punch.data.AbuserDetector
+import com.rymin.punch.data.FirebaseRepository
 import com.rymin.punch.data.LeaderboardRepository
 import com.rymin.punch.network.NearbyConnectionsManager
 import com.rymin.punch.ui.theme.PunchTheme
+import kotlinx.coroutines.launch
 
 class DartGameActivity : ComponentActivity() {
     private lateinit var leaderboardRepository: LeaderboardRepository
     private var nearbyManager: NearbyConnectionsManager? = null
+
+    companion object {
+        private const val TAG = "DartGameActivity"
+        private const val MAX_DART_SCORE = 180 // 3 darts * 60 (triple 20)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,9 +61,7 @@ class DartGameActivity : ComponentActivity() {
                     DartGameScreen(
                         isTopDartScore = isTopScore,
                         onSaveScore = { name, score ->
-                            leaderboardRepository.addDartEntry(name, score)
-                            // Send updated leaderboard to connected display
-                            nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
+                            saveScoreWithValidation(name, score)
                         },
                         onLeaderboardUpdated = {
                             nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
@@ -61,10 +69,60 @@ class DartGameActivity : ComponentActivity() {
                         onResetLeaderboard = {
                             leaderboardRepository.clearDartLeaderboard()
                             nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
+                            // Also clear Firebase (optional)
+                            lifecycleScope.launch {
+                                FirebaseRepository.clearAllScores()
+                            }
                         },
                         onBack = { finish() }
                     )
                 }
+            }
+        }
+    }
+
+    private fun saveScoreWithValidation(name: String, score: Int) {
+        // Skip zero scores
+        if (score <= 0) {
+            Log.d(TAG, "Skipping zero score")
+            return
+        }
+
+        // Validate score with abuser detection
+        val validation = AbuserDetector.validateScore(score, MAX_DART_SCORE)
+
+        if (!validation.valid && validation.reason != null) {
+            // Abuser detected!
+            Log.w(TAG, "Abuser detected: ${validation.reason?.description} - ${validation.detail}")
+
+            lifecycleScope.launch {
+                FirebaseRepository.registerAbuser(
+                    name = name,
+                    reason = validation.reason,
+                    attemptedScore = score,
+                    detail = validation.detail ?: ""
+                )
+            }
+
+            Toast.makeText(
+                this,
+                "🚨 Cheater detected! You've been added to Wall of Shame!",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        // Valid score - save to local and Firebase
+        leaderboardRepository.addDartEntry(name, score)
+        nearbyManager?.sendLeaderboardData(leaderboardRepository.getLeaderboardData())
+
+        // Save to Firebase
+        lifecycleScope.launch {
+            val result = FirebaseRepository.saveScore(name, score)
+            if (result.isSuccess) {
+                Log.d(TAG, "Score saved to Firebase: $name - $score")
+            } else {
+                Log.e(TAG, "Failed to save to Firebase", result.exceptionOrNull())
             }
         }
     }
