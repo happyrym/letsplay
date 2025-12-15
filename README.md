@@ -1,86 +1,79 @@
-# Let's Play! - Christmas Party Games
+# Let's Play! - Party Games 🎉
 
-연말 파티용 웹/앱 게임 프로젝트
+연말 파티용 다트 게임
 
-## Demo
+## Play Now
 
-**Web (GitHub Pages):** [https://[username].github.io/letsplay/](https://[username].github.io/letsplay/)
+**Web:** GitHub Pages에서 바로 플레이 (배포 후 URL 생성)
 
-## Games
+## Game: Dart 🎯
 
-### Punch Game
-10초 안에 망치로 펀치머신을 두드려 최고 점수를 기록하세요!
-- 속도 + 정확도 기반 점수 계산 (최대 1000점)
-- 드래그 속도 감지 및 타겟 정확도 측정
-- 파티클 이펙트 및 애니메이션
+10초 안에 3개의 다트를 던져 최고 점수를 기록하세요!
 
-### Dart Game
-다트를 던져 과녁을 맞춰 점수를 획득하세요!
-- 터치/드래그 기반 다트 던지기
-- 과녁 정확도 기반 점수 계산
+- **조작:** 다트를 잡고 위로 스와이프
+- **점수:** 과녁 정확도 기반 (최대 180점)
+- **리더보드:** Firebase 실시간 동기화
+
+### 점수표
+| 영역 | 점수 |
+|------|------|
+| Bullseye | 50점 |
+| Bull | 25점 |
+| Triple | 기본 x 3 |
+| Double | 기본 x 2 |
+| Single | 1~20점 |
 
 ## Tech Stack
 
-### Web
-- **HTML5 Canvas** + **Vanilla JavaScript**
-- **GitHub Pages** 배포
-- **LocalStorage** 기반 리더보드
-
-### Android
-- **Kotlin** + **Jetpack Compose**
-- **Nearby Connections API** (P2P 통신)
-- 태블릿(게임) ↔ 스마트폰(리더보드) 연동
+- **Web:** HTML5 Canvas + Vanilla JavaScript
+- **Backend:** Firebase Firestore
+- **Deploy:** GitHub Pages + GitHub Actions
 
 ## Project Structure
 
 ```
 letsplay/
-├── android/               # Android 앱
-│   ├── app/               # 메인 게임 앱 (태블릿)
-│   └── leaderboard/       # 리더보드 디스플레이 앱 (스마트폰)
-├── web/                   # 웹 게임 (GitHub Pages)
-│   ├── index.html         # 메인 메뉴
-│   ├── punch.html         # 펀치 게임
-│   ├── dart.html          # 다트 게임
-│   ├── shame.html         # Wall of Shame (어뷰저 명예의 전당)
-│   └── abuser.js          # 어뷰저 탐지 시스템
-├── .github/workflows/     # GitHub Actions
-│   └── deploy.yml         # Pages 자동 배포
-├── CLAUDE.md              # 개발 문서
-└── README.md
+├── web/                    # 웹 게임
+│   ├── index.html          # 메인 메뉴
+│   ├── dart.html           # 다트 게임
+│   ├── shame.html          # Wall of Shame
+│   └── abuser.js           # 어뷰저 탐지
+├── android/                # Android 앱 (개발 중)
+│   ├── app/                # 게임 앱
+│   └── leaderboard/        # 리더보드 앱
+└── .github/workflows/      # CI/CD
 ```
 
 ## Features
 
-### Leaderboard
-- 로컬 스토리지 기반 Top 10 랭킹
-- 이름 입력 (A-Z 키보드 + 크리스마스 이모지)
-- 0점일 경우 리더보드 저장 스킵
+- ✅ 다트 게임 (10초, 3다트)
+- ✅ Firebase 리더보드 (실시간)
+- ✅ 어뷰저 탐지 시스템
+- ✅ Wall of Shame (치터 명예의 전당)
 
-### Anti-Cheat System
-어뷰저 탐지 및 "Wall of Shame" 시스템:
-- **Honeypot 함수** - 스크립트 키디 탐지
-- **점수 검증** - 불가능한 점수, 스피드핵, 게임플레이 미감지
-- **Wall of Shame** - 적발된 어뷰저 명예의 전당
-- **경고 효과** - 3초 경고음 + 화면 오버레이
+## Anti-Cheat System 🛡️
 
-## Deployment
+- Honeypot 함수로 스크립트 키디 탐지
+- 점수 검증 (최대 점수, 플레이 시간)
+- 적발 시 Wall of Shame 등록 + 경고음
 
-### GitHub Pages (Web)
+## Development
+
 ```bash
-# .github/workflows/deploy.yml 자동 배포
-# 또는 Settings → Pages → Branch: main, Folder: /web
+# 로컬 테스트 (Python)
+cd web
+python -m http.server 8080
+
+# 브라우저에서 http://localhost:8080 접속
 ```
 
-### Android
-```bash
-cd android
-./gradlew assembleDebug
-```
+## Firebase Setup
+
+1. Firebase Console에서 프로젝트 생성
+2. Firestore Database 활성화 (테스트 모드)
+3. 웹 앱 등록 후 config 복사
+4. `dart.html`의 `firebaseConfig` 수정
 
 ## License
 
-이 프로젝트는 연말 파티 전용으로 제작되었습니다.
-
-**Icon Credits:**
-- Hammer & Punch Machine icons from [UXWing](https://uxwing.com/) (Free for commercial use)
+Made with ❤️ for Christmas Party 🎄

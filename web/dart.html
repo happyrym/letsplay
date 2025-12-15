@@ -4,6 +4,22 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Dart Game</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBBNFKtvBRE6_wN-8uDIgLKk0uyeCGslXM",
+            authDomain: "letsplay-party.firebaseapp.com",
+            projectId: "letsplay-party",
+            storageBucket: "letsplay-party.firebasestorage.app",
+            messagingSenderId: "162068174696",
+            appId: "1:162068174696:web:2541b8a4242e919db6a8dd",
+            measurementId: "G-QF1XRSVFDJ"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
     <style>
         * {
             margin: 0;
@@ -291,9 +307,30 @@
         let flyingDart = null;
         let particles = [];
 
-        // Leaderboard
-        let leaderboard = JSON.parse(localStorage.getItem('dartLeaderboard') || '[]');
+        // Leaderboard (Firebase)
+        let leaderboard = [];
         let playerName = '';
+
+        // Firebase 실시간 리더보드 구독
+        function subscribeToLeaderboard() {
+            db.collection('dart_scores')
+                .orderBy('score', 'desc')
+                .limit(10)
+                .onSnapshot((snapshot) => {
+                    leaderboard = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    updateLeaderboardDisplay();
+                }, (error) => {
+                    console.error('Firestore error:', error);
+                    // fallback to localStorage
+                    leaderboard = JSON.parse(localStorage.getItem('dartLeaderboard') || '[]');
+                });
+        }
+
+        // 초기화 시 구독 시작
+        subscribeToLeaderboard();
 
         // Keyboard setup
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -342,7 +379,7 @@
             document.getElementById('nameDisplay').textContent = playerName || '_';
         }
 
-        function saveName() {
+        async function saveName() {
             if (playerName.length > 0) {
                 // 0점은 저장 안 함
                 if (totalScore <= 0) return;
@@ -359,14 +396,29 @@
                     return; // 저장 안 함
                 }
 
-                leaderboard.push({ name: playerName, score: totalScore });
-                leaderboard.sort((a, b) => b.score - a.score);
-                leaderboard = leaderboard.slice(0, 10);
-                localStorage.setItem('dartLeaderboard', JSON.stringify(leaderboard));
+                try {
+                    // Firebase에 저장
+                    await db.collection('dart_scores').add({
+                        name: playerName,
+                        score: totalScore,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
 
-                document.getElementById('nameInputSection').classList.add('hidden');
-                document.getElementById('savedSection').classList.remove('hidden');
-                updateLeaderboardDisplay();
+                    document.getElementById('nameInputSection').classList.add('hidden');
+                    document.getElementById('savedSection').classList.remove('hidden');
+                    // 리더보드는 실시간 구독으로 자동 업데이트됨
+                } catch (error) {
+                    console.error('Firebase save error:', error);
+                    // fallback to localStorage
+                    leaderboard.push({ name: playerName, score: totalScore });
+                    leaderboard.sort((a, b) => b.score - a.score);
+                    leaderboard = leaderboard.slice(0, 10);
+                    localStorage.setItem('dartLeaderboard', JSON.stringify(leaderboard));
+
+                    document.getElementById('nameInputSection').classList.add('hidden');
+                    document.getElementById('savedSection').classList.remove('hidden');
+                    updateLeaderboardDisplay();
+                }
             }
         }
 

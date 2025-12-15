@@ -1,177 +1,128 @@
-# Punch Game Application
+# Let's Play - Party Games
 
 ## 프로젝트 개요
-게임 어플리케이션 개발 프로젝트
-**목적:** 연말 파티용 게임 (배포 없음, 파티 현장 사용)
-**개발 우선순위:** 기능 구현 우선, 완벽한 안정성보다는 작동하는 프로토타입
+연말 파티용 게임 어플리케이션
+**목적:** 파티 현장에서 여러 사람이 즐길 수 있는 게임
+**현재 게임:** 다트 게임 (Dart Game)
 
-## 게임 컨셉
-리듬 펀치 게임
+## 게임: 다트 (Dart Game)
 
-### 게임 플레이 메커니즘
-**제한 시간: 10초**
+### 게임 플레이
+- **제한 시간:** 10초
+- **다트 개수:** 3개
+- **조작:** 다트를 잡고 위로 스와이프해서 던지기
+- **점수:** 과녁 정확도 기반 (최대 180점 = Triple 20 x 3)
 
-**화면 레이아웃:**
-- **왼쪽**: 망치
-- **오른쪽**: 펀치머신 (타겟)
-
-**플레이 방식:**
-1. 망치를 터치해서 펀치머신으로 드래그
-2. 망치 머리가 펀치머신 타겟에 닿으면 점수 측정
-3. **점수 계산 요소:**
-   - **속도 점수**: 일정 속도 이상이면 400점 부여 (임계값: SPEED_THRESHOLD)
-   - **정확도 점수**: 타겟 중앙에 가까울수록 높은 점수 (최대 600점)
-   - **총점**: 속도 + 정확도 = 최대 1000점 (표시: 999.99)
-
-**타이머:**
-- 게임 시작 후 10초 카운트다운
-- 10초 내에 여러 번 시도 가능
-- 시간 초과 시 게임 종료
-
-### 핵심 기능
-- 10초 타이머 시스템
-- 터치 드래그 인터랙션
-- 드래그 속도 감지
-- 타겟 정확도 측정
-- 속도 + 정확도 기반 점수 계산
-
-### UI/UX 효과
-- 망치가 펀치머신 방향으로 0~90도 회전
-- 드래그 속도 게이지 표시
-- 파티클 이펙트 (유니티 스타일)
-  - 드래그 중: 트레일 파티클
-  - 펀치 히트: 폭발 이펙트 (꽝!)
-- 점수 상승 애니메이션 (로그 함수 곡선)
-- 점수 오버레이 (게임 화면 위에 표시)
-
-### 점수 시스템
-- **만점**: 1000점 (화면 표시: 999.99)
-- **소수점 2자리까지 표시** (예: 856.47점)
-- **점수 계산 방식**:
-  - **속도 점수**: 임계값(SPEED_THRESHOLD) 이상이면 400점 (그 미만 0점)
-  - **정확도 점수**: 타겟 중앙 근접도 * 600 (최대 600점)
-  - 총점 = 속도 점수(400) + 정확도 점수(600) = 최대 1000점
-- **점수 상수** (`GameViewModel.kt`):
-  - `MAX_SCORE = 1000.0`
-  - `SPEED_SCORE_MAX = 400.0`
-  - `SPEED_THRESHOLD = 50f` (조정 가능)
-  - `ACCURACY_SCORE_MAX = 600.0`
-
-### 리더보드
-- **1위~10위까지 표시**
-- 로컬 저장 방식 (SharedPreferences)
-- 서버 연동 없이 기기 내에서만 최고 기록 관리
-- 기록 달성 시 이름 입력 기능
-- 이름 + 점수(소수점 2자리) 랭킹 표시
+### 점수 계산
+- **Bullseye (중앙):** 50점
+- **Bull (중앙 외곽):** 25점
+- **Triple Ring:** 기본 점수 x 3
+- **Double Ring:** 기본 점수 x 2
+- **Single:** 기본 점수 (1~20)
 
 ## 프로젝트 구조
 
 ```
 letsplay/
-├── android/               # Android 앱
-│   ├── app/               # 메인 게임 앱 (태블릿)
-│   ├── leaderboard/       # 리더보드 디스플레이 앱 (스마트폰)
+├── android/                   # Android 앱
+│   ├── app/                   # 메인 게임 앱 (태블릿)
+│   ├── leaderboard/           # 리더보드 앱 (스마트폰)
+│   │   └── google-services.json
 │   └── gradle 설정 파일들
-├── web/                   # 웹 게임 (GitHub Pages)
-│   ├── index.html         # 메인 메뉴
-│   ├── punch.html         # 펀치 게임
-│   ├── dart.html          # 다트 게임
-│   ├── shame.html         # Wall of Shame (어뷰저 명예의 전당)
-│   └── abuser.js          # 어뷰저 탐지 시스템
-├── .github/workflows/     # GitHub Actions
-│   └── deploy.yml         # Pages 자동 배포
-├── README.md              # 프로젝트 소개
-└── CLAUDE.md              # 개발 문서
+├── web/                       # 웹 게임 (GitHub Pages)
+│   ├── index.html             # 메인 메뉴
+│   ├── dart.html              # 다트 게임 + Firebase 연동
+│   ├── shame.html             # Wall of Shame
+│   └── abuser.js              # 어뷰저 탐지 시스템
+├── .github/workflows/
+│   └── deploy.yml             # GitHub Pages 자동 배포
+├── README.md
+└── CLAUDE.md
 ```
 
-### Android 앱 (android/)
-1. **메인 게임 앱** (app)
-   - **타겟 디바이스: 태블릿 (가로 모드 고정)**
-   - 게임 플레이
-   - 점수 기록
-   - 로컬 리더보드
-   - 점수 데이터 송신 (호스트)
+## 기술 스택
 
-2. **리더보드 디스플레이 앱** (leaderboard)
-   - **타겟 디바이스: 스마트폰 (세로 모드 고정)**
-   - **1위~10위 실시간 랭킹 표시**
-   - 점수 데이터 수신 (클라이언트)
-   - 이름 + 점수(소수점 2자리) 표시
-   - **Nearby Connections API** (태블릿-폰 직접 연결)
-   - 인터넷/공유기 불필요, P2P 통신
-   - Wi-Fi Direct + Bluetooth 자동 선택
+### 웹 (web/)
+- **프레임워크:** HTML5 Canvas + Vanilla JavaScript
+- **배포:** GitHub Pages
+- **리더보드:** Firebase Firestore (실시간 동기화)
 
-### 웹 게임 (web/)
-- **기술 스택**: HTML5 Canvas + Vanilla JavaScript
-- **배포**: GitHub Pages
-- **특징**:
-  - 앱 설치 없이 브라우저에서 바로 플레이
-  - PC, 태블릿, 모바일 모두 지원
-  - 로컬 스토리지 기반 리더보드
+### Android (android/)
+- **언어:** Kotlin
+- **UI:** Jetpack Compose
+- **리더보드:** Firebase Firestore
+- **P2P 통신:** Nearby Connections API (태블릿 ↔ 스마트폰)
 
-**GitHub Pages 배포 방법:**
-1. GitHub 저장소 Settings → Pages
-2. Source: Deploy from a branch
-3. Branch: main, Folder: /web
-4. Save → URL 생성됨
+## Firebase 설정
 
-## 현재 진행 상황
+### 프로젝트 정보
+- **Project ID:** `letsplay-party`
+- **Firestore Collection:** `dart_scores`
 
-### 완료된 기능
-1. ✅ 프로젝트 기본 구조 (앱 + 리더보드 서브 모듈)
-2. ✅ Splash 화면
-3. ✅ 망치 + 펀치머신 Vector Drawable
-4. ✅ 10초 타이머 시스템
-5. ✅ 드래그 인터랙션 (속도 감지)
-6. ✅ 망치 회전 애니메이션 (0~90도)
-7. ✅ 파티클 이펙트 (트레일 + 폭발)
-8. ✅ 속도 + 정확도 점수 계산
-9. ✅ 점수 오버레이 표시 (로그 함수 애니메이션)
-10. ✅ 만화 스타일 이미지 에셋 교체
-    - UXWing에서 망치 아이콘 다운로드 (`ic_hammer.xml`)
-    - UXWing에서 아케이드 펀치머신 아이콘 다운로드 (`ic_punch_machine.xml`)
-    - 두 서브 모듈에 모두 추가 완료
-    - 라이센스: 상업적 사용 가능, 저작권 표시 불필요
+### 웹 설정 (dart.html)
+```javascript
+const firebaseConfig = {
+    apiKey: "AIzaSyBBNFKtvBRE6_wN-8uDIgLKk0uyeCGslXM",
+    authDomain: "letsplay-party.firebaseapp.com",
+    projectId: "letsplay-party",
+    storageBucket: "letsplay-party.firebasestorage.app",
+    messagingSenderId: "162068174696",
+    appId: "1:162068174696:web:2541b8a4242e919db6a8dd"
+};
+```
 
-### 완료된 추가 기능
-11. ✅ 이름 입력 UI 구현
-    - 점수 표시 후 이름 입력 화면
-    - 리더보드 진입 여부 확인 (Top 10)
-    - A-Z 키보드 + 크리스마스 이모지 지원
-12. ✅ 로컬 리더보드 저장 (SharedPreferences/LocalStorage)
-    - `LeaderboardRepository.kt`로 상위 10위 관리
-    - 이름 + 점수 저장/조회
-    - **0점일 경우 리더보드 저장 스킵**
-13. ✅ Nearby Connections API 설정
-    - 태블릿 (app): `NearbyConnectionsManager.kt` - Advertiser (호스트)
-    - 폰 (leaderboard): `NearbyConnectionsClient.kt` - Discoverer (클라이언트)
-14. ✅ P2P 통신 구현
-    - 점수 데이터 JSON 직렬화 전송
-    - 리더보드 앱에서 실시간 수신/표시
-    - 연결 상태 UI 표시 (양쪽 앱)
-15. ✅ 다트 게임 추가
-    - 터치/드래그 기반 다트 던지기
-    - 과녁 정확도 기반 점수 계산
-    - 태블릿 가로 모드 UI 최적화
-16. ✅ 듀얼 리더보드 시스템
-    - 펀치/다트 게임 별도 리더보드
-17. ✅ 어뷰저 탐지 시스템 (Wall of Shame)
-    - `abuser.js`: 어뷰저 탐지 모듈
-    - `shame.html`: 적발된 어뷰저 명예의 전당
-    - **탐지 방법:**
-      - Honeypot 함수 (`submitScore`, `cheat`, `hack` 등)
-      - 점수 검증 (최대 점수 초과, 음수 점수)
-      - 게임플레이 검증 (게임 시작 여부, 최소 플레이 시간)
-      - 스피드핵 탐지 (2초 미만 게임 완료)
-    - **경고 효과:**
-      - 3초 경고음 (WebAudio API)
-      - 화면 오버레이 + 흔들림 애니메이션
-      - Cheater 배지 시스템 (💀🚫👎🤡💩)
-18. ✅ GitHub Actions 배포
-    - `.github/workflows/deploy.yml`
-    - Push 시 자동 GitHub Pages 배포
+### Android 설정
+- **패키지명:** `com.rymin.punch.leaderboard`
+- **설정 파일:** `android/leaderboard/google-services.json`
 
-### 다음 작업
-1. 🔄 테스트 및 디버깅
-   - 실제 기기에서 P2P 연결 테스트
-   - 연결 안정성 확인
+### Firestore 데이터 구조
+```javascript
+// Collection: dart_scores
+{
+    name: "Player Name",
+    score: 120,
+    timestamp: Timestamp
+}
+```
+
+## 리더보드 시스템
+
+### 웹 (Firebase)
+- 실시간 구독 (`onSnapshot`)
+- Top 10 자동 정렬 (`orderBy('score', 'desc').limit(10)`)
+- 오프라인 시 localStorage 폴백
+
+### 어뷰저 탐지 (Anti-Cheat)
+- **Honeypot 함수:** `submitScore`, `cheat`, `hack` 등
+- **점수 검증:** 최대 점수 초과, 음수 점수, 스피드핵
+- **Wall of Shame:** 적발된 치터 명예의 전당
+
+## 완료된 기능
+
+1. ✅ 다트 게임 (웹)
+   - 10초 타이머, 3개 다트
+   - 터치/드래그 기반 던지기
+   - 과녁 정확도 점수 계산
+   - 파티클 이펙트
+
+2. ✅ Firebase 리더보드 (웹)
+   - Firestore 실시간 동기화
+   - Top 10 랭킹
+   - 이름 입력 (A-Z + 이모지)
+
+3. ✅ 어뷰저 탐지 시스템
+   - Honeypot 함수
+   - 점수/게임플레이 검증
+   - Wall of Shame 페이지
+
+4. ✅ GitHub Actions 배포
+   - Push 시 자동 배포
+
+## 다음 작업
+
+1. 🔄 Android 앱 Firebase 연동
+   - Firestore SDK 추가
+   - 점수 저장/조회 구현
+
+2. 🔄 GitHub Pages 설정
+   - Settings → Pages → Source: GitHub Actions
