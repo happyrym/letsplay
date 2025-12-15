@@ -68,15 +68,20 @@
 
 ```
 letsplay/
-├── android/           # Android 앱
-│   ├── app/           # 메인 게임 앱
-│   ├── leaderboard/   # 리더보드 디스플레이 앱
+├── android/               # Android 앱
+│   ├── app/               # 메인 게임 앱 (태블릿)
+│   ├── leaderboard/       # 리더보드 디스플레이 앱 (스마트폰)
 │   └── gradle 설정 파일들
-├── web/               # 웹 게임 (GitHub Pages)
-│   ├── index.html     # 메인 메뉴
-│   ├── punch.html     # 펀치 게임
-│   └── dart.html      # 다트 게임
-└── CLAUDE.md
+├── web/                   # 웹 게임 (GitHub Pages)
+│   ├── index.html         # 메인 메뉴
+│   ├── punch.html         # 펀치 게임
+│   ├── dart.html          # 다트 게임
+│   ├── shame.html         # Wall of Shame (어뷰저 명예의 전당)
+│   └── abuser.js          # 어뷰저 탐지 시스템
+├── .github/workflows/     # GitHub Actions
+│   └── deploy.yml         # Pages 자동 배포
+├── README.md              # 프로젝트 소개
+└── CLAUDE.md              # 개발 문서
 ```
 
 ### Android 앱 (android/)
@@ -128,18 +133,15 @@ letsplay/
     - 두 서브 모듈에 모두 추가 완료
     - 라이센스: 상업적 사용 가능, 저작권 표시 불필요
 
-### 다음 작업
-1. 🔄 테스트 및 디버깅
-   - 실제 기기에서 P2P 연결 테스트
-   - 연결 안정성 확인
-
 ### 완료된 추가 기능
 11. ✅ 이름 입력 UI 구현
     - 점수 표시 후 이름 입력 화면
     - 리더보드 진입 여부 확인 (Top 10)
-12. ✅ 로컬 리더보드 저장 (SharedPreferences)
+    - A-Z 키보드 + 크리스마스 이모지 지원
+12. ✅ 로컬 리더보드 저장 (SharedPreferences/LocalStorage)
     - `LeaderboardRepository.kt`로 상위 10위 관리
     - 이름 + 점수 저장/조회
+    - **0점일 경우 리더보드 저장 스킵**
 13. ✅ Nearby Connections API 설정
     - 태블릿 (app): `NearbyConnectionsManager.kt` - Advertiser (호스트)
     - 폰 (leaderboard): `NearbyConnectionsClient.kt` - Discoverer (클라이언트)
@@ -147,3 +149,29 @@ letsplay/
     - 점수 데이터 JSON 직렬화 전송
     - 리더보드 앱에서 실시간 수신/표시
     - 연결 상태 UI 표시 (양쪽 앱)
+15. ✅ 다트 게임 추가
+    - 터치/드래그 기반 다트 던지기
+    - 과녁 정확도 기반 점수 계산
+    - 태블릿 가로 모드 UI 최적화
+16. ✅ 듀얼 리더보드 시스템
+    - 펀치/다트 게임 별도 리더보드
+17. ✅ 어뷰저 탐지 시스템 (Wall of Shame)
+    - `abuser.js`: 어뷰저 탐지 모듈
+    - `shame.html`: 적발된 어뷰저 명예의 전당
+    - **탐지 방법:**
+      - Honeypot 함수 (`submitScore`, `cheat`, `hack` 등)
+      - 점수 검증 (최대 점수 초과, 음수 점수)
+      - 게임플레이 검증 (게임 시작 여부, 최소 플레이 시간)
+      - 스피드핵 탐지 (2초 미만 게임 완료)
+    - **경고 효과:**
+      - 3초 경고음 (WebAudio API)
+      - 화면 오버레이 + 흔들림 애니메이션
+      - Cheater 배지 시스템 (💀🚫👎🤡💩)
+18. ✅ GitHub Actions 배포
+    - `.github/workflows/deploy.yml`
+    - Push 시 자동 GitHub Pages 배포
+
+### 다음 작업
+1. 🔄 테스트 및 디버깅
+   - 실제 기기에서 P2P 연결 테스트
+   - 연결 안정성 확인
