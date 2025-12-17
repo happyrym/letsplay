@@ -169,6 +169,8 @@
             max-height: 300px;
             overflow-y: auto;
             margin: 20px 0;
+            touch-action: pan-y;
+            -webkit-overflow-scrolling: touch;
         }
 
         .leaderboard-item {
@@ -293,9 +295,7 @@
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="showNameInput()">🏠 Home</button>
     <button class="help-btn" onclick="showHelp()">?</button>
-    <a href="shame.html" style="position:fixed;top:20px;right:20px;z-index:50;padding:10px 20px;background:rgba(231,76,60,0.3);border:none;border-radius:8px;color:#e74c3c;text-decoration:none;font-size:1rem;">💀 Wall of Shame</a>
     <canvas id="gameCanvas"></canvas>
 
     <!-- Help Dialog -->
@@ -567,10 +567,18 @@
         }
 
         function resize() {
+            const dpr = window.devicePixelRatio || 1;
             width = window.innerWidth;
             height = window.innerHeight;
-            canvas.width = width;
-            canvas.height = height;
+
+            // High DPI 대응: 캔버스 실제 크기를 dpr배로
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+
+            // 컨텍스트 스케일 조정
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             // Set dartboard position
             boardCenterX = width / 2;
