@@ -18,7 +18,8 @@
 - **다트 개수:** 3개
 - **조작:** 다트를 잡고 위로 스와이프해서 던지기
 - **점수:** 과녁 정확도 기반 (최대 180점 = Triple 20 x 3)
-- **보너스:** 180점 달성 시 보너스 다트 (시간 내 추가 점수 가능)
+- **보너스 조건:** 180점 달성 OR Bullseye 3번 달성
+- **보너스 라운드:** 남은 시간 동안 무제한 다트 (추가 점수 획득)
 
 ### 점수 계산
 - **Bullseye (중앙):** 50점
@@ -27,25 +28,39 @@
 - **Double Ring:** 기본 점수 x 2
 - **Single:** 기본 점수 (1~20)
 
+### 점수 저장 형식
+- 기본 점수 + 보너스 점수를 소수점으로 저장
+- 예: 180점 + 보너스 50점 = `180.050`
+- 정렬 시 기본 점수 우선 (180.050 > 150.999)
+
 ## 프로젝트 구조
 
 ```
 letsplay/
 ├── android/                   # Android 앱
 │   ├── app/                   # 메인 게임 앱 (태블릿)
+│   │   └── src/main/java/com/rymin/punch/
+│   │       ├── DartGameActivity.kt
+│   │       ├── DartGameScreen.kt
+│   │       └── data/
+│   │           ├── FirebaseRepository.kt
+│   │           ├── AbuserDetector.kt
+│   │           └── LeaderboardEntry.kt
 │   ├── leaderboard/           # 리더보드 앱 (스마트폰)
-│   │   └── google-services.json
+│   │   └── src/main/java/com/rymin/punch/leaderboard/
+│   │       ├── LeaderboardActivity.kt
+│   │       └── FirebaseRepository.kt
 │   └── gradle 설정 파일들
 ├── web/                       # 웹 게임 (GitHub Pages)
 │   ├── index.html             # dart.html로 리다이렉트
 │   ├── dart.html              # 다트 게임 + Firebase 연동
 │   ├── shame.html             # Wall of Shame (어뷰저 명단)
 │   ├── abuser.js              # 어뷰저 탐지 시스템
-│   └── qr.png                 # 접속용 QR 코드
+│   └── qr.png                 # 접속용 QR 코드 (1350x1350)
 ├── .github/workflows/
 │   └── deploy.yml             # GitHub Pages 자동 배포
 ├── README.md
-└── CLAUDE.md
+└── claude.md
 ```
 
 ## 기술 스택
@@ -55,6 +70,7 @@ letsplay/
 - **배포:** GitHub Pages (자동 배포)
 - **리더보드:** Firebase Firestore (실시간 동기화)
 - **그래픽:** High DPI Canvas (Retina 디스플레이 지원)
+- **반응형:** 세로 크기 기준 비율 (height-based responsive)
 
 ### Android (android/)
 - **언어:** Kotlin
@@ -66,7 +82,9 @@ letsplay/
 
 ### 프로젝트 정보
 - **Project ID:** `letsplay-party`
-- **Firestore Collection:** `dart-scores`
+- **Firestore Collection:**
+  - 웹: `dart_scores` (underscore)
+  - Android: `dart-scores` (hyphen) - TODO: 통일 필요
 
 ### 웹 설정 (dart.html)
 ```javascript
@@ -86,10 +104,10 @@ const firebaseConfig = {
 
 ### Firestore 데이터 구조
 ```javascript
-// Collection: dart-scores
+// Collection: dart_scores (웹) / dart-scores (Android)
 {
     name: "Player Name",
-    score: 120,
+    score: 180.050,      // 기본점수.보너스점수 (소수점 3자리)
     timestamp: Timestamp
 }
 ```
@@ -101,6 +119,7 @@ const firebaseConfig = {
 - Top 10 자동 정렬 (`orderBy('score', 'desc').limit(10)`)
 - 오프라인 시 localStorage 폴백
 - 터치 스크롤 지원
+- 보너스 점수 표시 (예: 180.050)
 
 ### Android 리더보드 앱
 - Firebase 실시간 동기화
@@ -124,11 +143,28 @@ const firebaseConfig = {
 - 경고음 + 풀스크린 알림
 - URL 직접 접근으로 확인 가능
 
+## 개발자 모드 (TEST_MODE)
+
+### 설정 위치: dart.html 상단
+```javascript
+// TODO: 배포 전 false로 변경!
+const TEST_MODE = true;
+const TEST_SCORE = 180;  // 테스트용 점수 (180 또는 150)
+```
+
+### TEST_MODE 효과
+- 기본 다트 점수가 `TEST_SCORE / 3`점으로 고정
+- 0점 3개일 때도 보너스 라운드 발동
+- 어뷰저 탐지 건너뛰기 (마우스 테스트 가능)
+
+### 배포 전 체크리스트
+- [ ] `TEST_MODE = false` 변경
+
 ## 완료된 기능
 
 ### 웹 게임
 - ✅ 다트 게임 (10초, 3다트, 스와이프 던지기)
-- ✅ 180점 보너스 라운드
+- ✅ 180점 / Bullseye x3 보너스 라운드
 - ✅ High DPI 캔버스 (선명한 그래픽)
 - ✅ 반응형 레이아웃 (세로 기준 비율)
 - ✅ Firebase 리더보드 (실시간 Top 10)
@@ -137,11 +173,15 @@ const firebaseConfig = {
 - ✅ Wall of Shame 페이지
 - ✅ GitHub Actions 자동 배포
 - ✅ 접속용 QR 코드
+- ✅ 손가락 스와이프 힌트 애니메이션
+- ✅ 50ms 타이머 업데이트 (소수점 2자리)
+- ✅ 도움말 버튼 (시작/결과 화면)
 
 ### Android 앱
 - ✅ 리더보드 앱 Firebase 연동
 - ✅ 실시간 점수 동기화
 - ✅ 관리자 점수 초기화 (타이틀 5번 탭)
+- ✅ 1등 달성 시 축하 파티클 효과
 
 ## 관리자 기능
 
@@ -154,3 +194,4 @@ const firebaseConfig = {
 ## 다음 작업
 
 - 🔄 Firebase Security Rules 강화 (서버 사이드 점수 검증)
+- 🔄 Firestore 컬렉션 이름 통일 (dart_scores vs dart-scores)
