@@ -509,7 +509,7 @@
         function showNameInput() {
             // 게임 중이면 타이머 정지
             if (timerInterval) {
-                clearInterval(timerInterval);
+                cancelAnimationFrame(timerInterval);
                 timerInterval = null;
             }
             gamePhase = 'ready';
@@ -584,9 +584,9 @@
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
             // Set dartboard position (세로 기준으로 비율 고정)
-            boardRadius = height * 0.22;
+            boardRadius = height * 0.18;
             boardCenterX = width / 2;
-            boardCenterY = height * 0.38;
+            boardCenterY = height * 0.42;
 
             // Dart rest position (세로 기준)
             dartRestX = width / 2;
@@ -614,19 +614,34 @@
             document.getElementById('readyOverlay').classList.add('hidden');
             document.getElementById('resultOverlay').classList.add('hidden');
 
-            timerInterval = setInterval(() => {
-                if (gamePhase !== 'result') {
-                    timeRemaining--;
+            // 타이머: 소수점 2자리, 약 210ms마다 랜덤하게 업데이트
+            let lastTimerUpdate = Date.now();
+            const timerTick = () => {
+                if (gamePhase === 'result') return;
+
+                const now = Date.now();
+                const elapsed = now - lastTimerUpdate;
+
+                // 약 210ms마다 업데이트 (180~240ms 랜덤)
+                if (elapsed >= 180 + Math.random() * 60) {
+                    timeRemaining -= elapsed / 1000;
+                    lastTimerUpdate = now;
+
                     if (timeRemaining <= 0) {
+                        timeRemaining = 0;
                         endGame();
+                        return;
                     }
                 }
-            }, 1000);
+
+                timerInterval = requestAnimationFrame(timerTick);
+            };
+            timerInterval = requestAnimationFrame(timerTick);
         }
 
         function endGame() {
             gamePhase = 'result';
-            clearInterval(timerInterval);
+            cancelAnimationFrame(timerInterval);
             showResult();
         }
 
@@ -1019,37 +1034,32 @@
         }
 
         function drawUI() {
-            // Timer
+            // Timer (소수점 2자리)
             ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
-            ctx.font = 'bold 48px Arial';
+            ctx.font = 'bold 42px Arial';
             ctx.textAlign = 'left';
-            ctx.fillText(timeRemaining, 30, 60);
+            ctx.fillText(timeRemaining.toFixed(2), 20, 50);
 
             // 보너스 라운드 표시
             if (isInBonusRound) {
                 ctx.fillStyle = '#FFD700';
-                ctx.font = 'bold 28px Arial';
-                ctx.fillText('🔥 BONUS ROUND! 🔥', 30, 100);
-                
+                ctx.font = 'bold 24px Arial';
+                ctx.fillText('🔥 BONUS!', 20, 85);
+
                 // 보너스 점수 표시 (180.xxx 형태)
-                ctx.font = 'bold 36px Arial';
+                ctx.font = 'bold 28px Arial';
                 const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
-                ctx.fillText(`Score: ${displayScore}`, 30, 145);
-                
-                // 보너스 다트 수
-                ctx.font = '20px Arial';
-                ctx.fillStyle = '#FFD700';
-                ctx.fillText(`Bonus darts: ${bonusDartsThrown}`, 30, 180);
+                ctx.fillText(`${displayScore}`, 20, 115);
             } else {
                 // Score
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 36px Arial';
-                ctx.fillText(`Score: ${totalScore}`, 30, 110);
+                ctx.font = 'bold 28px Arial';
+                ctx.fillText(`${totalScore}`, 20, 85);
 
                 // Darts remaining
-                ctx.font = '24px Arial';
+                ctx.font = '20px Arial';
                 const dartsLeft = MAX_DARTS - dartsThrown;
-                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 30, 150);
+                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 20, 115);
             }
 
             // Swipe guide
