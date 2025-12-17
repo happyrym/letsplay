@@ -215,17 +215,108 @@
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
+
+        .help-btn {
+            position: fixed;
+            top: 20px;
+            right: 180px;
+            z-index: 50;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .help-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .help-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .help-dialog {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 450px;
+            text-align: center;
+        }
+
+        .help-dialog h2 {
+            color: #f39c12;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .help-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+            text-align: left;
+        }
+
+        .help-item span:first-child {
+            font-size: 1.5rem;
+        }
+
+        .help-item span:last-child {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+
+        .bonus-indicator {
+            color: #FFD700;
+            font-weight: bold;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
     </style>
 </head>
 <body>
-    <button class="back-btn" onclick="location.href='index.html'">🏠 Home</button>
+    <button class="back-btn" onclick="showNameInput()">🏠 Home</button>
+    <button class="help-btn" onclick="showHelp()">?</button>
     <a href="shame.html" style="position:fixed;top:20px;right:20px;z-index:50;padding:10px 20px;background:rgba(231,76,60,0.3);border:none;border-radius:8px;color:#e74c3c;text-decoration:none;font-size:1rem;">💀 Wall of Shame</a>
     <canvas id="gameCanvas"></canvas>
+
+    <!-- Help Dialog -->
+    <div id="helpOverlay" class="help-overlay hidden">
+        <div class="help-dialog">
+            <h2>🎯 게임 방법</h2>
+            <div class="help-item"><span>🎯</span><span>다트를 잡고 위로 스와이프해서 던지세요</span></div>
+            <div class="help-item"><span>⏱️</span><span>10초 안에 3개의 다트를 던지세요</span></div>
+            <div class="help-item"><span>🎖️</span><span>Triple 20 = 60점 (최고 점수!)</span></div>
+            <div class="help-item"><span>🎯</span><span>Bullseye = 50점</span></div>
+            <div class="help-item"><span>🔥</span><span>180점 만점 달성 시 보너스 다트!</span></div>
+            <div class="help-item"><span>⭐</span><span>보너스 다트로 추가 점수 획득</span></div>
+            <button class="btn btn-primary" onclick="hideHelp()" style="margin-top: 20px;">확인</button>
+        </div>
+    </div>
 
     <!-- Name Input Overlay (첫 진입 시) -->
     <div id="nameOverlay" class="overlay">
         <h1>🎯 Dart Game</h1>
         <p>Enter your name to start!</p>
+        <p style="font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: -20px; margin-bottom: 10px;">Made by Eden.ryu</p>
         <div class="name-display" id="nameInputDisplay">_</div>
         <div class="keyboard">
             <div class="keyboard-row" id="nameRow1"></div>
@@ -262,7 +353,7 @@
         </div>
         <div style="margin-top: 20px;">
             <button class="btn btn-primary" onclick="restartGame()">🔄 Retry</button>
-            <button class="btn btn-secondary" onclick="location.href='index.html'">🏠 Home</button>
+            <button class="btn btn-secondary" onclick="showNameInput()">🏠 Home</button>
         </div>
     </div>
 
@@ -272,6 +363,7 @@
         const DART_NUMBERS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
         const GAME_TIME = 10;
         const MAX_DARTS = 3;
+        const PERFECT_SCORE = 180;
 
         // Colors
         const DART_RED = '#E63946';
@@ -286,12 +378,26 @@
         let width, height;
 
         // Game state
-        let gamePhase = 'ready'; // ready, playing, throwing, result
+        let gamePhase = 'ready'; // ready, playing, throwing, bonus, result
         let timeRemaining = GAME_TIME;
         let totalScore = 0;
         let dartsThrown = 0;
         let thrownDarts = [];
         let timerInterval = null;
+
+        // 보너스 라운드 상태
+        let isInBonusRound = false;
+        let bonusScore = 0;
+        let bonusDartsThrown = 0;
+
+        // 도움말 함수
+        function showHelp() {
+            document.getElementById('helpOverlay').classList.remove('hidden');
+        }
+
+        function hideHelp() {
+            document.getElementById('helpOverlay').classList.add('hidden');
+        }
 
         // Dartboard position
         let boardCenterX, boardCenterY, boardRadius;
@@ -397,6 +503,20 @@
             document.getElementById('nameOverlay').classList.remove('hidden');
         }
 
+        function showNameInput() {
+            // 게임 중이면 타이머 정지
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            gamePhase = 'ready';
+            nameInputTemp = playerName;
+            updateNameInputDisplay();
+            document.getElementById('readyOverlay').classList.add('hidden');
+            document.getElementById('resultOverlay').classList.add('hidden');
+            document.getElementById('nameOverlay').classList.remove('hidden');
+        }
+
         // 초기화: 이름이 있으면 바로 게임 화면으로
         function initGame() {
             setupNameKeyboard();
@@ -471,6 +591,11 @@
             particles = [];
             flyingDart = null;
 
+            // 보너스 상태 초기화
+            isInBonusRound = false;
+            bonusScore = 0;
+            bonusDartsThrown = 0;
+
             // 어뷰저 탐지: 게임 시작 기록
             AbuserDetector.resetGameState();
             AbuserDetector.startGame();
@@ -495,13 +620,27 @@
         }
 
         function showResult() {
-            document.getElementById('finalScore').textContent = totalScore;
+            // 점수 표시 (보너스 포함)
+            const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
+            document.getElementById('finalScore').textContent = displayScore;
 
             // Show dart scores
-            const scoresHtml = thrownDarts.map((d, i) =>
+            const baseDarts = thrownDarts.filter(d => !d.isBonus);
+            const bonusDarts = thrownDarts.filter(d => d.isBonus);
+            
+            let scoresHtml = baseDarts.map((d, i) =>
                 `Dart ${i + 1}: ${d.score.description} (${d.score.totalPoints})`
             ).join(' | ');
-            document.getElementById('dartScores').textContent = scoresHtml || 'No darts thrown!';
+            
+            if (bonusDarts.length > 0) {
+                scoresHtml += ' | <span style="color:#FFD700">🔥 BONUS: ';
+                scoresHtml += bonusDarts.map((d, i) =>
+                    `+${d.score.totalPoints}`
+                ).join(', ');
+                scoresHtml += '</span>';
+            }
+            
+            document.getElementById('dartScores').innerHTML = scoresHtml || 'No darts thrown!';
 
             document.getElementById('resultOverlay').classList.remove('hidden');
 
@@ -581,7 +720,11 @@
         }
 
         function processSwipe(startX, startY, endX, endY, elapsed) {
-            if (gamePhase !== 'playing' || dartsThrown >= MAX_DARTS) return;
+            // 보너스 라운드면 3다트 제한 없음, 시간만 체크
+            const canThrow = isInBonusRound 
+                ? (gamePhase === 'playing' && timeRemaining > 0)
+                : (gamePhase === 'playing' && dartsThrown < MAX_DARTS && timeRemaining > 0);
+            if (!canThrow) return;
 
             const dx = endX - startX;
             const dy = endY - startY;
@@ -871,15 +1014,32 @@
             ctx.textAlign = 'left';
             ctx.fillText(timeRemaining, 30, 60);
 
-            // Score
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 36px Arial';
-            ctx.fillText(`Score: ${totalScore}`, 30, 110);
+            // 보너스 라운드 표시
+            if (isInBonusRound) {
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 28px Arial';
+                ctx.fillText('🔥 BONUS ROUND! 🔥', 30, 100);
+                
+                // 보너스 점수 표시 (180.xxx 형태)
+                ctx.font = 'bold 36px Arial';
+                const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
+                ctx.fillText(`Score: ${displayScore}`, 30, 145);
+                
+                // 보너스 다트 수
+                ctx.font = '20px Arial';
+                ctx.fillStyle = '#FFD700';
+                ctx.fillText(`Bonus darts: ${bonusDartsThrown}`, 30, 180);
+            } else {
+                // Score
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 36px Arial';
+                ctx.fillText(`Score: ${totalScore}`, 30, 110);
 
-            // Darts remaining
-            ctx.font = '24px Arial';
-            const dartsLeft = MAX_DARTS - dartsThrown;
-            ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 30, 150);
+                // Darts remaining
+                ctx.font = '24px Arial';
+                const dartsLeft = MAX_DARTS - dartsThrown;
+                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 30, 150);
+            }
 
             // Swipe guide
             if (isDragging && currentDragY < dragStartY) {
@@ -935,22 +1095,47 @@
                 if (flyingDart.progress >= 1) {
                     // Dart landed
                     const score = calculateDartScore(flyingDart.normalizedX, flyingDart.normalizedY);
+                    
+                    // 어뷰저 탐지: 다트 착탄 위치 기록
+                    AbuserDetector.recordDartLanding(flyingDart.normalizedX, flyingDart.normalizedY);
+                    
                     thrownDarts.push({
                         x: flyingDart.targetX,
                         y: flyingDart.targetY,
                         normalizedX: flyingDart.normalizedX,
                         normalizedY: flyingDart.normalizedY,
-                        score
+                        score,
+                        isBonus: isInBonusRound
                     });
-                    totalScore += score.totalPoints;
-                    dartsThrown++;
+
+                    // 보너스 라운드면 보너스 점수에 누적, 아니면 기본 점수에 누적
+                    if (isInBonusRound) {
+                        bonusScore += score.totalPoints;
+                        bonusDartsThrown++;
+                    } else {
+                        totalScore += score.totalPoints;
+                        dartsThrown++;
+                    }
 
                     createParticles(flyingDart.targetX, flyingDart.targetY, score);
 
                     flyingDart = null;
 
-                    if (dartsThrown >= MAX_DARTS || timeRemaining <= 0) {
+                    // 게임 종료 체크
+                    if (timeRemaining <= 0) {
                         setTimeout(endGame, 500);
+                    } else if (isInBonusRound) {
+                        // 보너스 라운드 중 - 계속 던지기
+                        gamePhase = 'playing';
+                    } else if (dartsThrown >= MAX_DARTS) {
+                        // 기본 3다트 완료
+                        if (totalScore >= PERFECT_SCORE) {
+                            // 만점 달성! 보너스 라운드 시작
+                            isInBonusRound = true;
+                            gamePhase = 'playing';
+                        } else {
+                            setTimeout(endGame, 500);
+                        }
                     } else {
                         gamePhase = 'playing';
                     }
@@ -998,8 +1183,11 @@
 
                 drawParticles();
 
-                // Draw holdable dart
-                if (gamePhase === 'playing' && dartsThrown < MAX_DARTS && !flyingDart) {
+                // Draw holdable dart (보너스 라운드면 계속 표시)
+                const canShowDart = isInBonusRound 
+                    ? (gamePhase === 'playing' && !flyingDart)
+                    : (gamePhase === 'playing' && dartsThrown < MAX_DARTS && !flyingDart);
+                if (canShowDart) {
                     const dartX = isDragging ? currentDragX : dartRestX;
                     const dartY = isDragging ? currentDragY : dartRestY;
                     drawHoldableDart(dartX, dartY, isDragging ? 1.1 : 1);

@@ -1,12 +1,15 @@
 package com.rymin.punch.leaderboard
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.*
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -87,6 +90,7 @@ class LeaderboardActivity : ComponentActivity() {
                 // Firebase 실시간 데이터
                 var leaderboardData by remember { mutableStateOf(LeaderboardData()) }
                 var isConnected by remember { mutableStateOf(false) }
+                var showResetDialog by remember { mutableStateOf(false) }
 
                 // Firebase 실시간 구독
                 LaunchedEffect(Unit) {
@@ -107,8 +111,40 @@ class LeaderboardActivity : ComponentActivity() {
 
                 DualLeaderboardScreen(
                     leaderboardData = leaderboardData,
-                    isConnected = isConnected
+                    isConnected = isConnected,
+                    onSecretTap = { showResetDialog = true }
                 )
+
+                // Reset confirmation dialog
+                if (showResetDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showResetDialog = false },
+                        title = { Text("Reset Leaderboard", fontWeight = FontWeight.Bold) },
+                        text = { Text("Are you sure you want to delete all scores? This action cannot be undone.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showResetDialog = false
+                                    lifecycleScope.launch {
+                                        val success = FirebaseRepository.clearAllScores()
+                                        Toast.makeText(
+                                            this@LeaderboardActivity,
+                                            if (success) "Leaderboard cleared!" else "Failed to clear",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            ) {
+                                Text("DELETE ALL", color = Color(0xFFe74c3c))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showResetDialog = false }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -133,7 +169,8 @@ enum class GameTab {
 @Composable
 fun DualLeaderboardScreen(
     leaderboardData: LeaderboardData = LeaderboardData(),
-    isConnected: Boolean = false
+    isConnected: Boolean = false,
+    onSecretTap: () -> Unit = {}
 ) {
     // 다트 게임만 사용 (펀치 게임 코드는 유지하되 숨김)
     var currentTab by remember { mutableStateOf(GameTab.DART) }
@@ -151,7 +188,8 @@ fun DualLeaderboardScreen(
             isConnected = isConnected,
             gameTab = currentTab,
             onTabChange = { /* 탭 전환 비활성화 */ },
-            showTabs = false  // 탭 UI 숨김
+            showTabs = false,  // 탭 UI 숨김
+            onSecretTap = onSecretTap
         )
     }
 }
@@ -162,8 +200,27 @@ fun LeaderboardScreen(
     isConnected: Boolean = false,
     gameTab: GameTab = GameTab.PUNCH,
     onTabChange: (GameTab) -> Unit = {},
-    showTabs: Boolean = true
+    showTabs: Boolean = true,
+    onSecretTap: () -> Unit = {}
 ) {
+    // Secret tap counter for admin reset (tap title 5 times)
+    var secretTapCount by remember { mutableStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
+
+    fun handleSecretTap() {
+        val now = System.currentTimeMillis()
+        if (now - lastTapTime > 2000) {
+            // Reset if more than 2 seconds since last tap
+            secretTapCount = 1
+        } else {
+            secretTapCount++
+            if (secretTapCount >= 5) {
+                secretTapCount = 0
+                onSecretTap()
+            }
+        }
+        lastTapTime = now
+    }
     var previousLeaderboard by remember { mutableStateOf<List<LeaderboardEntry>>(emptyList()) }
     var showCelebration by remember { mutableStateOf(false) }
     var newFirstPlaceEntry by remember { mutableStateOf<LeaderboardEntry?>(null) }
@@ -322,7 +379,7 @@ fun LeaderboardScreen(
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             } else {
-                // 다트 전용 타이틀
+                // 다트 전용 타이틀 (5번 탭하면 리셋 다이얼로그)
                 Text(
                     text = "🎯 DART LEADERBOARD 🎯",
                     fontSize = 24.sp,
@@ -330,7 +387,10 @@ fun LeaderboardScreen(
                     color = Color(0xFF3498db),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 12.dp)
+                        .pointerInput(Unit) {
+                            detectTapGestures { handleSecretTap() }
+                        },
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
             }

@@ -5,6 +5,7 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
 
 /**
  * Firebase Firestore Repository for Leaderboard (Real-time)
@@ -51,5 +52,24 @@ object FirebaseRepository {
             }
 
         awaitClose { listener.remove() }
+    }
+
+    /**
+     * Clear all scores from the leaderboard
+     * Returns true if successful, false otherwise
+     */
+    suspend fun clearAllScores(): Boolean {
+        return try {
+            val snapshot = db.collection(COLLECTION_DART_SCORES).get().await()
+            val batch = db.batch()
+            snapshot.documents.forEach { doc ->
+                batch.delete(doc.reference)
+            }
+            batch.commit().await()
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
     }
 }
