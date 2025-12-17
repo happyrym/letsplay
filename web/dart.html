@@ -621,7 +621,7 @@
             document.getElementById('readyOverlay').classList.add('hidden');
             document.getElementById('resultOverlay').classList.add('hidden');
 
-            // 타이머: 소수점 2자리, 약 210ms마다 랜덤하게 업데이트
+            // 타이머: 소수점 2자리, 약 50ms마다 업데이트
             let lastTimerUpdate = Date.now();
             const timerTick = () => {
                 if (gamePhase === 'result') return;
@@ -629,8 +629,8 @@
                 const now = Date.now();
                 const elapsed = now - lastTimerUpdate;
 
-                // 약 210ms마다 업데이트 (180~240ms 랜덤)
-                if (elapsed >= 180 + Math.random() * 60) {
+                // 약 50ms마다 업데이트
+                if (elapsed >= 50) {
                     timeRemaining -= elapsed / 1000;
                     lastTimerUpdate = now;
 
@@ -944,6 +944,23 @@
             ctx.save();
             ctx.translate(x, y);
 
+            // Flights (뒤에 그려지도록 먼저)
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.moveTo(0, len * 0.35);
+            ctx.lineTo(-w * 1.4, len * 0.7);
+            ctx.lineTo(-w * 0.3, len * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#c0392b';
+            ctx.beginPath();
+            ctx.moveTo(0, len * 0.35);
+            ctx.lineTo(w * 1.4, len * 0.7);
+            ctx.lineTo(w * 0.3, len * 0.5);
+            ctx.closePath();
+            ctx.fill();
+
             // Body
             ctx.fillStyle = '#5A5A5A';
             ctx.beginPath();
@@ -965,23 +982,6 @@
             ctx.closePath();
             ctx.fill();
 
-            // Flights
-            ctx.fillStyle = '#e74c3c';
-            ctx.beginPath();
-            ctx.moveTo(0, len * 0.35);
-            ctx.lineTo(-w * 1.4, len * 0.7);
-            ctx.lineTo(-w * 0.3, len * 0.5);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = '#c0392b';
-            ctx.beginPath();
-            ctx.moveTo(0, len * 0.35);
-            ctx.lineTo(w * 1.4, len * 0.7);
-            ctx.lineTo(w * 0.3, len * 0.5);
-            ctx.closePath();
-            ctx.fill();
-
             ctx.restore();
         }
 
@@ -1000,27 +1000,7 @@
                 ctx.fill();
             }
 
-            // Body
-            ctx.fillStyle = '#5A5A5A';
-            ctx.beginPath();
-            ctx.ellipse(0, len * 0.1, w / 2, len * 0.25, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#8A8A8A';
-            ctx.beginPath();
-            ctx.ellipse(-w * 0.1, len * 0.05, w * 0.2, len * 0.18, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Tip
-            ctx.fillStyle = '#D0D0D0';
-            ctx.beginPath();
-            ctx.moveTo(0, -len * 0.3);
-            ctx.lineTo(-w * 0.25, 0);
-            ctx.lineTo(w * 0.25, 0);
-            ctx.closePath();
-            ctx.fill();
-
-            // Flights
+            // Flights (뒤에 그려지도록 먼저)
             ctx.fillStyle = '#e74c3c';
             ctx.beginPath();
             ctx.moveTo(0, len * 0.35);
@@ -1037,36 +1017,64 @@
             ctx.closePath();
             ctx.fill();
 
+            // Body
+            ctx.fillStyle = '#5A5A5A';
+            ctx.beginPath();
+            ctx.ellipse(0, len * 0.1, w / 2, len * 0.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Highlight
+            ctx.fillStyle = '#8A8A8A';
+            ctx.beginPath();
+            ctx.ellipse(-w * 0.1, len * 0.05, w * 0.2, len * 0.18, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Tip
+            ctx.fillStyle = '#D0D0D0';
+            ctx.beginPath();
+            ctx.moveTo(0, -len * 0.3);
+            ctx.lineTo(-w * 0.25, 0);
+            ctx.lineTo(w * 0.25, 0);
+            ctx.closePath();
+            ctx.fill();
+
             ctx.restore();
         }
 
         function drawUI() {
+            // 화면 높이 기준 글자 크기
+            const fontSize = {
+                timer: Math.round(height * 0.05),
+                score: Math.round(height * 0.035),
+                small: Math.round(height * 0.025)
+            };
+
             // Timer (소수점 2자리)
             ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
-            ctx.font = 'bold 42px Arial';
+            ctx.font = `bold ${fontSize.timer}px Arial`;
             ctx.textAlign = 'left';
-            ctx.fillText(timeRemaining.toFixed(2), 20, 50);
+            ctx.fillText(timeRemaining.toFixed(2), 20, fontSize.timer);
 
             // 보너스 라운드 표시
             if (isInBonusRound) {
                 ctx.fillStyle = '#FFD700';
-                ctx.font = 'bold 24px Arial';
-                ctx.fillText('🔥 BONUS!', 20, 85);
+                ctx.font = `bold ${fontSize.small}px Arial`;
+                ctx.fillText('🔥 BONUS!', 20, fontSize.timer + fontSize.score);
 
                 // 보너스 점수 표시 (180.xxx 형태)
-                ctx.font = 'bold 28px Arial';
+                ctx.font = `bold ${fontSize.score}px Arial`;
                 const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
-                ctx.fillText(`${displayScore}`, 20, 115);
+                ctx.fillText(`${displayScore}`, 20, fontSize.timer + fontSize.score * 2);
             } else {
                 // Score
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 28px Arial';
-                ctx.fillText(`${totalScore}`, 20, 85);
+                ctx.font = `bold ${fontSize.score}px Arial`;
+                ctx.fillText(`${totalScore}`, 20, fontSize.timer + fontSize.score);
 
                 // Darts remaining
-                ctx.font = '20px Arial';
+                ctx.font = `${fontSize.small}px Arial`;
                 const dartsLeft = MAX_DARTS - dartsThrown;
-                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 20, 115);
+                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 20, fontSize.timer + fontSize.score * 2);
             }
 
             // Swipe guide
@@ -1096,9 +1104,9 @@
                                   last.score.multiplier === 3 ? '#e74c3c' :
                                   last.score.multiplier === 2 ? '#27ae60' : '#f39c12';
                 ctx.fillStyle = scoreColor;
-                ctx.font = 'bold 28px Arial';
+                ctx.font = `bold ${fontSize.score}px Arial`;
                 ctx.textAlign = 'center';
-                ctx.fillText(`+${last.score.totalPoints} ${last.score.description}`, width / 2, height - 150);
+                ctx.fillText(`+${last.score.totalPoints} ${last.score.description}`, width / 2, height * 0.78);
             }
         }
 
@@ -1226,12 +1234,14 @@
                 // Ready instruction overlay - 손가락 위아래 애니메이션
                 if (gamePhase === 'playing' && dartsThrown === 0 && !isDragging) {
                     // 위아래 움직이는 애니메이션 (사인파)
-                    const bounce = Math.sin(Date.now() / 200) * 30;
+                    const bounceAmount = height * 0.03;
+                    const bounce = Math.sin(Date.now() / 200) * bounceAmount;
+                    const fingerSize = Math.round(height * 0.07);
 
                     // 손가락 이모지
-                    ctx.font = '60px Arial';
+                    ctx.font = `${fingerSize}px Arial`;
                     ctx.textAlign = 'center';
-                    ctx.fillText('👆', dartRestX, dartRestY - 80 + bounce);
+                    ctx.fillText('👆', dartRestX, dartRestY - height * 0.1 + bounce);
                 }
             }
 
