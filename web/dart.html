@@ -171,7 +171,7 @@
         }
 
         .leaderboard {
-            margin: 20px 0;
+            margin: 10px 0;
             touch-action: pan-y;
             -webkit-overflow-scrolling: touch;
         }
@@ -179,11 +179,16 @@
         .leaderboard-item {
             display: flex;
             justify-content: space-between;
-            padding: 10px 20px;
+            padding: 8px 15px;
             background: rgba(255, 255, 255, 0.1);
-            margin: 5px 0;
-            border-radius: 8px;
-            min-width: 280px;
+            margin: 4px 0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .result-header {
+            text-align: center;
+            flex-shrink: 0;
         }
 
         .leaderboard-item.highlight {
@@ -345,16 +350,18 @@
     </div>
 
     <!-- Result Overlay -->
-    <div id="resultOverlay" class="overlay hidden">
-        <h1>🎯 Result</h1>
-        <div class="dart-scores" id="dartScores"></div>
-        <div class="score-display" id="finalScore">0</div>
-        <div id="saveStatus"></div>
-        <div id="leaderboardSection">
-            <h2 style="margin-top: 20px;">🏆 Leaderboard</h2>
-            <div class="leaderboard" id="leaderboard"></div>
+    <div id="resultOverlay" class="overlay hidden" style="justify-content: space-between; padding: 15px 10px;">
+        <div class="result-header">
+            <h1 style="font-size: 1.5rem; margin-bottom: 5px;">🎯 Result</h1>
+            <div class="dart-scores" id="dartScores" style="font-size: 0.8rem; margin-bottom: 5px;"></div>
+            <div class="score-display" id="finalScore" style="font-size: 3rem; margin: 10px 0;">0</div>
+            <div id="saveStatus" style="font-size: 0.8rem;"></div>
         </div>
-        <div style="margin-top: 20px;">
+        <div id="leaderboardSection" style="flex: 1; overflow-y: auto; min-height: 0; width: 100%; max-width: 350px;">
+            <h2 style="font-size: 1.2rem; margin-bottom: 10px;">🏆 Leaderboard</h2>
+            <div class="leaderboard" id="leaderboard" style="overflow-y: auto;"></div>
+        </div>
+        <div class="result-buttons" style="padding-top: 10px; flex-shrink: 0;">
             <button class="btn btn-primary" onclick="restartGame()">🔄 Retry</button>
             <button class="btn btn-secondary" onclick="showNameInput()">🏠 Home</button>
         </div>
