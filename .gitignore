@@ -17,3 +17,5 @@ leaderboard/build
 .idea
 .serena
 **/build/
+.firebender/
+android/android/
