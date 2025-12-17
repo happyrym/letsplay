@@ -15,14 +15,14 @@
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
-        android:label="Punch Leaderboard"
+        android:label="Dart Party Leaderboard"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Punch">
+        android:theme="@style/Theme.DartParty">
         <activity
             android:name=".LeaderboardActivity"
             android:exported="true"
             android:screenOrientation="portrait"
-            android:theme="@style/Theme.Punch">
+            android:theme="@style/Theme.DartParty">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

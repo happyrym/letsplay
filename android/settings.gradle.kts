@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "punch"
+rootProject.name = "DartParty"
 include(":app")
 include(":leaderboard")
  

@@ -173,7 +173,8 @@ const AbuserDetector = {
         dragEvents: 0,
         touchPoints: [],      // 터치 좌표 기록
         dragPaths: [],        // 드래그 궤적 기록
-        touchRadii: []        // 터치 영역 크기 기록
+        touchRadii: [],       // 터치 영역 크기 기록
+        dartLandingPositions: []  // 다트 착탄 위치 기록
     },
 
     resetGameState() {
@@ -184,7 +185,8 @@ const AbuserDetector = {
             dragEvents: 0,
             touchPoints: [],
             dragPaths: [],
-            touchRadii: []
+            touchRadii: [],
+            dartLandingPositions: []
         };
     },
 
@@ -212,6 +214,11 @@ const AbuserDetector = {
         if (points && points.length > 0) {
             this.gameState.dragPaths.push(points);
         }
+    },
+
+    // 다트 착탄 위치 기록
+    recordDartLanding(normalizedX, normalizedY) {
+        this.gameState.dartLandingPositions.push({ x: normalizedX, y: normalizedY });
     },
 
     // 터치 좌표 분산 계산
@@ -308,6 +315,32 @@ const AbuserDetector = {
         return { valid: true };
     },
 
+    // 다트 착탄 위치가 완전히 동일한지 검사
+    // 사람 손으로는 정확히 같은 위치에 던지기가 불가능
+    checkIdenticalDartPositions() {
+        const positions = this.gameState.dartLandingPositions;
+        if (positions.length < 2) return { valid: true };
+
+        // 모든 위치 쌍을 비교하여 완전히 동일한 위치가 있는지 확인
+        for (let i = 0; i < positions.length; i++) {
+            for (let j = i + 1; j < positions.length; j++) {
+                const pos1 = positions[i];
+                const pos2 = positions[j];
+                
+                // 완전히 동일한 위치
+                if (pos1.x === pos2.x && pos1.y === pos2.y) {
+                    return {
+                        valid: false,
+                        reason: 'identical_dart_position',
+                        detail: `Dart ${i + 1} and ${j + 1} landed at identical position (${pos1.x}, ${pos1.y})`
+                    };
+                }
+            }
+        }
+
+        return { valid: true };
+    },
+
     // 점수 검증
     validateScore(score, game, maxScore) {
         const validations = [];
@@ -339,9 +372,9 @@ const AbuserDetector = {
             });
         }
 
-        // 4. 게임 플레이 시간 체크 (최소 2초)
+        // 4. 게임 플레이 시간 체크 (최소 1초)
         const playTime = Date.now() - this.gameState.startTime;
-        if (playTime < 2000 && this.gameState.started) {
+        if (playTime < 1000 && this.gameState.started) {
             validations.push({
                 valid: false,
                 reason: 'speed_hack',
@@ -374,6 +407,12 @@ const AbuserDetector = {
         const virtualTouch = this.detectVirtualTouch();
         if (!virtualTouch.valid) {
             validations.push(virtualTouch);
+        }
+
+        // 9. 다트 착탄 위치 동일 검사
+        const identicalPositions = this.checkIdenticalDartPositions();
+        if (!identicalPositions.valid) {
+            validations.push(identicalPositions);
         }
 
         return validations.length === 0 ? { valid: true } : validations[0];

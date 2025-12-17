@@ -18,7 +18,7 @@ import com.rymin.punch.data.AbuserDetector
 import com.rymin.punch.data.FirebaseRepository
 import com.rymin.punch.data.LeaderboardRepository
 import com.rymin.punch.network.NearbyConnectionsManager
-import com.rymin.punch.ui.theme.PunchTheme
+import com.rymin.punch.ui.theme.DartPartyTheme
 import kotlinx.coroutines.launch
 
 class DartGameActivity : ComponentActivity() {
@@ -27,7 +27,8 @@ class DartGameActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "DartGameActivity"
-        private const val MAX_DART_SCORE = 180 // 3 darts * 60 (triple 20)
+        private const val MAX_BASE_SCORE = 180 // 3 darts * 60 (triple 20)
+        private const val MAX_SINGLE_DART_SCORE = 60 // Triple 20
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +49,7 @@ class DartGameActivity : ComponentActivity() {
         nearbyManager = NearbyConnectionsManager(this)
 
         setContent {
-            PunchTheme {
+            DartPartyTheme {
                 var currentScore by remember { mutableStateOf(0) }
                 val isTopScore = leaderboardRepository.isTopDartScore(currentScore)
 
@@ -89,7 +90,7 @@ class DartGameActivity : ComponentActivity() {
         }
 
         // Validate score with abuser detection
-        val validation = AbuserDetector.validateScore(score, MAX_DART_SCORE)
+        val validation = AbuserDetector.validateScore(score, MAX_BASE_SCORE)
 
         if (!validation.valid && validation.reason != null) {
             // Abuser detected!

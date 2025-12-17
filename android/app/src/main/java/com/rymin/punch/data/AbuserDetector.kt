@@ -16,7 +16,8 @@ object AbuserDetector {
         SPEED_HACK("speed_hack", "Speed hack"),
         BOT_TOUCH_PATTERN("bot_touch_pattern", "Bot touch pattern"),
         BOT_DRAG_PATTERN("bot_drag_pattern", "Bot drag pattern"),
-        VIRTUAL_TOUCH("virtual_touch", "Virtual touch")
+        VIRTUAL_TOUCH("virtual_touch", "Virtual touch"),
+        IDENTICAL_DART_POSITION("identical_dart_position", "Identical dart landing positions")
     }
 
     data class TouchPoint(
@@ -36,7 +37,8 @@ object AbuserDetector {
         var dragEvents: Int = 0,
         var touchPoints: MutableList<TouchPoint> = mutableListOf(),
         var dragPaths: MutableList<DragPath> = mutableListOf(),
-        var touchRadii: MutableList<Pair<Float, Float>> = mutableListOf()
+        var touchRadii: MutableList<Pair<Float, Float>> = mutableListOf(),
+        var dartLandingPositions: MutableList<Pair<Float, Float>> = mutableListOf()  // 다트 착탄 위치
     )
 
     data class ValidationResult(
@@ -73,6 +75,13 @@ object AbuserDetector {
         if (points.isNotEmpty()) {
             gameState.dragPaths.add(DragPath(points))
         }
+    }
+
+    /**
+     * 다트 착탄 위치 기록
+     */
+    fun recordDartLanding(normalizedX: Float, normalizedY: Float) {
+        gameState.dartLandingPositions.add(Pair(normalizedX, normalizedY))
     }
 
     /**
@@ -183,6 +192,34 @@ object AbuserDetector {
     }
 
     /**
+     * 다트 착탄 위치가 완전히 동일한지 검사
+     * 사람 손으로는 정확히 같은 위치에 던지기가 불가능
+     */
+    private fun checkIdenticalDartPositions(): ValidationResult {
+        val positions = gameState.dartLandingPositions
+        if (positions.size < 2) return ValidationResult(true)
+
+        // 모든 위치 쌍을 비교하여 완전히 동일한 위치가 있는지 확인
+        for (i in 0 until positions.size) {
+            for (j in i + 1 until positions.size) {
+                val pos1 = positions[i]
+                val pos2 = positions[j]
+                
+                // 완전히 동일한 위치 (float 비교)
+                if (pos1.first == pos2.first && pos1.second == pos2.second) {
+                    return ValidationResult(
+                        valid = false,
+                        reason = AbuseReason.IDENTICAL_DART_POSITION,
+                        detail = "Dart ${i + 1} and ${j + 1} landed at identical position (${pos1.first}, ${pos1.second})"
+                    )
+                }
+            }
+        }
+
+        return ValidationResult(true)
+    }
+
+    /**
      * Validate score and gameplay
      */
     fun validateScore(score: Int, maxScore: Int): ValidationResult {
@@ -213,9 +250,9 @@ object AbuserDetector {
             )
         }
 
-        // 4. Play time check (minimum 2 seconds)
+        // 4. Play time check (minimum 1 second)
         val playTime = System.currentTimeMillis() - gameState.startTime
-        if (playTime < 2000 && gameState.started) {
+        if (playTime < 1000 && gameState.started) {
             return ValidationResult(
                 valid = false,
                 reason = AbuseReason.SPEED_HACK,
@@ -243,6 +280,10 @@ object AbuserDetector {
         // 8. Virtual touch detection
         val virtualTouch = detectVirtualTouch()
         if (!virtualTouch.valid) return virtualTouch
+
+        // 9. 다트 착탄 위치 동일 검사
+        val identicalPositions = checkIdenticalDartPositions()
+        if (!identicalPositions.valid) return identicalPositions
 
         return ValidationResult(true)
     }

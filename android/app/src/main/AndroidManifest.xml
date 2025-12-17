@@ -24,19 +24,13 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Punch">
-        <activity
-            android:name=".MainActivity"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.Punch" />
+        android:theme="@style/Theme.DartParty">
         <activity
             android:name=".DartGameActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:screenOrientation="landscape"
-            android:theme="@style/Theme.Punch">
+            android:theme="@style/Theme.DartParty">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

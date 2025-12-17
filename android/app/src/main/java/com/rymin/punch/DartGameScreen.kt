@@ -88,10 +88,14 @@ enum class ParticleType {
     SMOKE       // Slow moving smoke
 }
 
+// 만점 상수
+const val PERFECT_SCORE = 180
+
 @Composable
 fun DartGameScreen(
     isTopDartScore: Boolean = true,
     onSaveScore: (String, Int) -> Unit = { _, _ -> },
+    onSaveScoreDouble: (String, Double) -> Unit = { _, _ -> },  // 보너스 점수용
     onLeaderboardUpdated: () -> Unit = {},
     onResetLeaderboard: () -> Unit = {},
     onBack: () -> Unit = {}
@@ -101,6 +105,11 @@ fun DartGameScreen(
     var dartsThrown by remember { mutableStateOf(0) }
     var totalScore by remember { mutableStateOf(0) }
     var thrownDarts by remember { mutableStateOf<List<ThrownDart>>(emptyList()) }
+    
+    // 보너스 라운드 상태
+    var isInBonusRound by remember { mutableStateOf(false) }
+    var bonusScore by remember { mutableStateOf(0) }  // 보너스 점수 (소수점 아래로 누적)
+    var bonusDartsThrown by remember { mutableStateOf(0) }
 
     // Swipe tracking
     var swipeStart by remember { mutableStateOf<Offset?>(null) }
@@ -196,9 +205,18 @@ fun DartGameScreen(
 
             val score = calculateRealDartScore(landingX, landingY)
             lastScore = score
-            totalScore += score.totalPoints
+            
+            // 어뷰저 탐지: 다트 착탄 위치 기록
+            AbuserDetector.recordDartLanding(landingX, landingY)
+            
+            // 보너스 라운드면 보너스 점수에 누적, 아니면 기본 점수에 누적
+            if (isInBonusRound) {
+                bonusScore += score.totalPoints
+            } else {
+                totalScore += score.totalPoints
+                dartsThrown++
+            }
             thrownDarts = thrownDarts + ThrownDart(landingX, landingY, score)
-            dartsThrown++
 
             val particleCount = when {
                 score.totalPoints >= 50 -> 6
@@ -233,9 +251,26 @@ fun DartGameScreen(
             hitParticles = emptyList()
             trailParticles = emptyList()
 
-            if (dartsThrown >= 3 || timeRemaining <= 0) {
+            // 보너스 라운드 체크: 180점 만점이고 시간이 남았으면 계속 던지기
+            if (timeRemaining <= 0) {
+                // 시간 종료 - 결과 화면으로
                 gamePhase = DartGamePhase.RESULT
-                playerName = ""  // Reset name for new result
+                playerName = ""
+            } else if (isInBonusRound) {
+                // 보너스 라운드 중 - 계속 던지기 (시간이 남아있는 한)
+                bonusDartsThrown++
+                gamePhase = DartGamePhase.PLAYING
+            } else if (dartsThrown >= 3) {
+                // 기본 3다트 완료
+                if (totalScore >= PERFECT_SCORE) {
+                    // 만점 달성! 보너스 라운드 시작
+                    isInBonusRound = true
+                    gamePhase = DartGamePhase.PLAYING
+                } else {
+                    // 만점 아님 - 결과 화면으로
+                    gamePhase = DartGamePhase.RESULT
+                    playerName = ""
+                }
             } else {
                 gamePhase = DartGamePhase.PLAYING
             }
@@ -263,7 +298,13 @@ fun DartGameScreen(
 
     // Calculate landing position from swipe
     fun processSwipe(swipeData: SwipeData) {
-        if (gamePhase != DartGamePhase.PLAYING || dartsThrown >= 3 || timeRemaining <= 0) return
+        // 보너스 라운드면 3다트 제한 없음, 시간만 체크
+        val canThrow = if (isInBonusRound) {
+            gamePhase == DartGamePhase.PLAYING && timeRemaining > 0
+        } else {
+            gamePhase == DartGamePhase.PLAYING && dartsThrown < 3 && timeRemaining > 0
+        }
+        if (!canThrow) return
 
         val normalizedVelocity = (swipeData.velocity / 5f).coerceIn(0.2f, 1f)
         val angleFromUp = swipeData.angle + (PI / 2).toFloat()
@@ -279,12 +320,21 @@ fun DartGameScreen(
         gamePhase = DartGamePhase.THROWING
     }
 
+    // 도움말 다이얼로그 상태
+    var showHelpDialog by remember { mutableStateOf(false) }
+
+    // 도움말 다이얼로그
+    if (showHelpDialog) {
+        HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
     // ========== 가로 모드 태블릿 레이아웃 ==========
-    Row(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF1a1a2e))
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF1a1a2e))
+        ) {
         // ========== 왼쪽 패널: 게임 정보 / 결과 ==========
         Box(
             modifier = Modifier
@@ -309,6 +359,10 @@ fun DartGameScreen(
                         timeRemaining = 10
                         lastScore = null
                         playerName = ""
+                        // 보너스 상태 초기화
+                        isInBonusRound = false
+                        bonusScore = 0
+                        bonusDartsThrown = 0
                         // Reset abuser detection
                         AbuserDetector.resetGameState()
                     },
@@ -326,7 +380,10 @@ fun DartGameScreen(
                     lastScore = lastScore,
                     showScorePopup = showScorePopup,
                     scorePopupScale = scorePopupScale,
-                    scorePopupAlpha = scorePopupAlpha
+                    scorePopupAlpha = scorePopupAlpha,
+                    isInBonusRound = isInBonusRound,
+                    bonusScore = bonusScore,
+                    bonusDartsThrown = bonusDartsThrown
                 )
             }
         }
@@ -514,6 +571,101 @@ fun DartGameScreen(
                 }
             }
         }
+        }
+
+        // 우측 상단 ? 버튼
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(48.dp)
+                .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                .clickable { showHelpDialog = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "?",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+// 도움말 다이얼로그
+@Composable
+fun HelpDialog(onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable { onDismiss() },
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .width(400.dp)
+                .background(Color(0xFF16213e), RoundedCornerShape(16.dp))
+                .padding(24.dp)
+                .clickable { /* 내부 클릭 시 닫히지 않도록 */ }
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "🎯 게임 방법",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFf39c12)
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    HelpItem("🎯", "다트를 잡고 위로 스와이프해서 던지세요")
+                    HelpItem("⏱️", "10초 안에 3개의 다트를 던지세요")
+                    HelpItem("🎖️", "Triple 20 = 60점 (최고 점수!)")
+                    HelpItem("🎯", "Bullseye = 50점")
+                    HelpItem("🔥", "180점 만점 달성 시 보너스 다트!")
+                    HelpItem("⭐", "보너스 다트로 추가 점수 획득")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .background(Color(0xFF3498db), RoundedCornerShape(12.dp))
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "확인",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HelpItem(emoji: String, text: String) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(text = emoji, fontSize = 24.sp)
+        Text(
+            text = text,
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = 0.9f)
+        )
     }
 }
 
@@ -1001,7 +1153,10 @@ fun DartGameLeftPanel(
     lastScore: DartScore?,
     showScorePopup: Boolean,
     scorePopupScale: Float,
-    scorePopupAlpha: Float
+    scorePopupAlpha: Float,
+    isInBonusRound: Boolean = false,
+    bonusScore: Int = 0,
+    bonusDartsThrown: Int = 0
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -1032,17 +1187,35 @@ fun DartGameLeftPanel(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // 보너스 라운드 표시
+            if (isInBonusRound) {
+                Text(
+                    text = "🔥 BONUS ROUND! 🔥",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFFD700)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             Text(
-                text = "SCORE",
+                text = if (isInBonusRound) "BONUS" else "SCORE",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = if (isInBonusRound) Color(0xFFFFD700).copy(alpha = 0.8f) else Color.White.copy(alpha = 0.6f)
             )
+            
+            // 점수 표시: 보너스 라운드면 180.xxx 형태
+            val displayScore = if (isInBonusRound && bonusScore > 0) {
+                "$totalScore.${bonusScore}"
+            } else {
+                "$totalScore"
+            }
             Text(
-                text = "$totalScore",
-                fontSize = 80.sp,
+                text = displayScore,
+                fontSize = if (isInBonusRound) 60.sp else 80.sp,
                 fontWeight = FontWeight.Black,
-                color = Color.White
+                color = if (isInBonusRound) Color(0xFFFFD700) else Color.White
             )
 
             // 마지막 점수 팝업
