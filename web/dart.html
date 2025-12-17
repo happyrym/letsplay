@@ -310,12 +310,14 @@
     <div id="helpOverlay" class="help-overlay hidden">
         <div class="help-dialog">
             <h2>🎯 게임 방법</h2>
-            <div class="help-item"><span>🎯</span><span>다트를 잡고 위로 스와이프해서 던지세요</span></div>
+            <div class="help-item"><span>👆</span><span>다트를 잡고 위로 스와이프해서 던지세요</span></div>
             <div class="help-item"><span>⏱️</span><span>10초 안에 3개의 다트를 던지세요</span></div>
-            <div class="help-item"><span>🎖️</span><span>Triple 20 = 60점 (최고 점수!)</span></div>
+            <div class="help-item"><span>🎖️</span><span>Triple 20 = 60점 (최고!)</span></div>
             <div class="help-item"><span>🎯</span><span>Bullseye = 50점</span></div>
-            <div class="help-item"><span>🔥</span><span>180점 만점 달성 시 보너스 다트!</span></div>
-            <div class="help-item"><span>⭐</span><span>보너스 다트로 추가 점수 획득</span></div>
+            <h3 style="margin-top: 15px; color: #FFD700;">🔥 보너스 라운드</h3>
+            <div class="help-item"><span>✨</span><span>180점 또는 Bullseye 3개 달성 시!</span></div>
+            <div class="help-item"><span>♾️</span><span>남은 시간 동안 무제한 다트</span></div>
+            <div class="help-item"><span>⭐</span><span>추가 점수는 소수점으로 표시</span></div>
             <button class="btn btn-primary" onclick="hideHelp()" style="margin-top: 20px;">확인</button>
         </div>
     </div>
@@ -375,6 +377,9 @@
         const MAX_DARTS = 3;
         const PERFECT_SCORE = 180;
 
+        // TODO: 배포 전 false로 변경!
+        const TEST_MODE = true;
+
         // Colors
         const DART_RED = '#E63946';
         const DART_GREEN = '#2D6A4F';
@@ -399,6 +404,7 @@
         let isInBonusRound = false;
         let bonusScore = 0;
         let bonusDartsThrown = 0;
+        let bullseyeCount = 0;  // Bullseye 3번 보너스용
 
         // 도움말 함수
         function showHelp() {
@@ -613,6 +619,7 @@
             isInBonusRound = false;
             bonusScore = 0;
             bonusDartsThrown = 0;
+            bullseyeCount = 0;
 
             // 어뷰저 탐지: 게임 시작 기록
             AbuserDetector.resetGameState();
@@ -920,7 +927,8 @@
         }
 
         function drawLandedDart(x, y) {
-            const size = 12;
+            // 세로 기준 크기
+            const size = height * 0.015;
             ctx.fillStyle = '#C0C0C0';
             ctx.beginPath();
             ctx.arc(x, y, size * 0.8, 0, Math.PI * 2);
@@ -938,8 +946,10 @@
         }
 
         function drawFlyingDart(x, y, scale) {
-            const len = 90 * scale;
-            const w = 22 * scale;
+            // 세로 기준 크기
+            const baseSize = height * 0.08;
+            const len = baseSize * scale;
+            const w = baseSize * 0.25 * scale;
 
             ctx.save();
             ctx.translate(x, y);
@@ -986,8 +996,10 @@
         }
 
         function drawHoldableDart(x, y, scale) {
-            const len = 120 * scale;
-            const w = 32 * scale;
+            // 세로 기준 크기
+            const baseSize = height * 0.12;
+            const len = baseSize * scale;
+            const w = baseSize * 0.27 * scale;
 
             ctx.save();
             ctx.translate(x, y);
@@ -1131,7 +1143,12 @@
                 if (flyingDart.progress >= 1) {
                     // Dart landed
                     const score = calculateDartScore(flyingDart.normalizedX, flyingDart.normalizedY);
-                    
+
+                    // Bullseye 카운트 (보너스용)
+                    if (score.description === 'Bullseye') {
+                        bullseyeCount++;
+                    }
+
                     // 어뷰저 탐지: 다트 착탄 위치 기록
                     AbuserDetector.recordDartLanding(flyingDart.normalizedX, flyingDart.normalizedY);
                     
@@ -1165,7 +1182,7 @@
                         gamePhase = 'playing';
                     } else if (dartsThrown >= MAX_DARTS) {
                         // 기본 3다트 완료
-                        if (totalScore >= PERFECT_SCORE) {
+                        if (totalScore >= PERFECT_SCORE || bullseyeCount >= 3 || (TEST_MODE && totalScore === 0)) {
                             // 만점 달성! 보너스 라운드 시작
                             isInBonusRound = true;
                             gamePhase = 'playing';
@@ -1257,7 +1274,11 @@
         let currentDragPath = [];
 
         function handlePointerDown(e) {
-            if (gamePhase !== 'playing' || dartsThrown >= MAX_DARTS || flyingDart) return;
+            // 보너스 라운드면 다트 수 제한 없음
+            const canGrab = isInBonusRound
+                ? (gamePhase === 'playing' && !flyingDart)
+                : (gamePhase === 'playing' && dartsThrown < MAX_DARTS && !flyingDart);
+            if (!canGrab) return;
 
             const rect = canvas.getBoundingClientRect();
             const touch = e.touches?.[0];
