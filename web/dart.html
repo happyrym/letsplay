@@ -1223,19 +1223,15 @@
 
                 drawUI();
 
-                // Ready instruction overlay
+                // Ready instruction overlay - 손가락 위아래 애니메이션
                 if (gamePhase === 'playing' && dartsThrown === 0 && !isDragging) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                    ctx.fillRect(0, height * 0.7, width, height * 0.3);
+                    // 위아래 움직이는 애니메이션 (사인파)
+                    const bounce = Math.sin(Date.now() / 200) * 30;
 
-                    ctx.fillStyle = '#f39c12';
-                    ctx.font = 'bold 28px Arial';
+                    // 손가락 이모지
+                    ctx.font = '60px Arial';
                     ctx.textAlign = 'center';
-                    ctx.fillText('🎯 GRAB THE DART', width / 2, height * 0.8);
-
-                    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-                    ctx.font = '18px Arial';
-                    ctx.fillText('⬆️ Swipe upward to throw!', width / 2, height * 0.88);
+                    ctx.fillText('👆', dartRestX, dartRestY - 80 + bounce);
                 }
             }
 
