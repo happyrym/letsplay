@@ -1194,8 +1194,12 @@
             if (gamePhase !== 'ready') {
                 drawDartboard();
 
-                // Draw landed darts
-                thrownDarts.forEach(d => drawLandedDart(d.x, d.y));
+                // Draw landed darts (다트판 기준 상대 좌표로 계산)
+                thrownDarts.forEach(d => {
+                    const dartX = boardCenterX + d.normalizedX * boardRadius;
+                    const dartY = boardCenterY + d.normalizedY * boardRadius;
+                    drawLandedDart(dartX, dartY);
+                });
 
                 // Draw flying dart
                 if (flyingDart) {
