@@ -341,14 +341,20 @@
     </div>
 
     <!-- Ready Overlay -->
-    <div id="readyOverlay" class="overlay hidden">
+    <div id="readyOverlay" class="overlay hidden" style="justify-content: space-between; padding: 30px 20px;">
         <button class="help-btn" onclick="showHelp()" style="position:absolute;top:20px;right:20px;">?</button>
-        <h1>🎯 Dart Game</h1>
-        <p>Welcome, <span id="playerNameDisplay"></span>!</p>
-        <p>Grab the dart and swipe upward to throw!</p>
-        <p>3 darts in 10 seconds</p>
-        <button class="btn btn-primary" onclick="startGame()">START</button>
-        <button class="btn btn-secondary" onclick="changeName()">✏️ Change Name</button>
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <h1>🎯 Dart Game</h1>
+            <p>Welcome, <span id="playerNameDisplay"></span>!</p>
+            <p>Grab the dart and swipe upward to throw!</p>
+            <p>3 darts in 10 seconds</p>
+            <button class="btn btn-primary" onclick="startGame()">START</button>
+            <button class="btn btn-secondary" onclick="changeName()">✏️ Change Name</button>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.8; margin-top: 20px;">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.6);">Made with 🤖 by Eden.ryu & Claude</span>
+            <img src="logo.svg" alt="Buzzvi" style="height: 18px; opacity: 0.8;">
+        </div>
     </div>
 
     <!-- Result Overlay -->
