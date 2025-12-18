@@ -1332,6 +1332,14 @@
                 small: Math.round(height * 0.025)
             };
 
+            // 상단 중앙에 1등 표시 (왕관 양옆)
+            if (leaderboard.length > 0 && leaderboard[0].name) {
+                ctx.fillStyle = '#FFD700';
+                ctx.font = `bold ${fontSize.small}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText(`👑 ${leaderboard[0].name} 👑`, width / 2, fontSize.small + 10);
+            }
+
             // 튜토리얼 모드면 연습 표시
             if (isTutorial) {
                 ctx.fillStyle = '#4CAF50';
