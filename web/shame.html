@@ -164,6 +164,9 @@
             margin-right: 8px;
         }
     </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <h1>💀 Wall of Shame 💀</h1>
@@ -190,6 +193,18 @@
     </div>
 
     <script>
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyBBNFKtvBRE6_wN-8uDIgLKk0uyeCGslXM",
+            authDomain: "letsplay-party.firebaseapp.com",
+            projectId: "letsplay-party",
+            storageBucket: "letsplay-party.firebasestorage.app",
+            messagingSenderId: "162068174696",
+            appId: "1:162068174696:web:2541b8a4242e919db6a8dd"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         const SHAME_KEY = 'wallOfShame';
         const REASONS = {
             'honeypot': { icon: '🍯', text: 'Used cheat function', detail: 'Called hidden honeypot function' },
@@ -202,12 +217,61 @@
             'virtual_touch': { icon: '👻', text: 'Virtual touch', detail: 'Simulated touch events detected' }
         };
 
-        function getShameList() {
+        let firebaseList = [];
+
+        function getLocalShameList() {
             return JSON.parse(localStorage.getItem(SHAME_KEY) || '[]');
         }
 
-        function renderShameList() {
-            const list = getShameList();
+        async function loadFromFirebase() {
+            try {
+                const snapshot = await db.collection('wall_of_shame')
+                    .orderBy('timestamp', 'desc')
+                    .limit(50)
+                    .get();
+
+                firebaseList = snapshot.docs.map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        ...data,
+                        timestamp: data.timestamp?.toDate?.()?.toISOString() || data.timestamp
+                    };
+                });
+            } catch (error) {
+                console.error('Firebase load error:', error);
+                firebaseList = [];
+            }
+        }
+
+        function mergeShameList() {
+            const localList = getLocalShameList();
+            // Firebase 데이터를 우선, 중복 제거 (이름+시간 기준)
+            const seen = new Set();
+            const merged = [];
+
+            for (const item of firebaseList) {
+                const key = `${item.name}-${item.reason}-${item.timestamp?.substring(0, 16)}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(item);
+                }
+            }
+
+            for (const item of localList) {
+                const key = `${item.name}-${item.reason}-${item.timestamp?.substring(0, 16)}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    merged.push(item);
+                }
+            }
+
+            return merged;
+        }
+
+        async function renderShameList() {
+            await loadFromFirebase();
+            const list = mergeShameList();
             const container = document.getElementById('shameList');
             const today = new Date().toDateString();
 
@@ -268,9 +332,22 @@
             return div.innerHTML;
         }
 
-        function clearShame() {
+        async function clearShame() {
             if (confirm('Clear all shame records?')) {
+                // localStorage 삭제
                 localStorage.removeItem(SHAME_KEY);
+
+                // Firebase 삭제
+                try {
+                    const snapshot = await db.collection('wall_of_shame').get();
+                    const batch = db.batch();
+                    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+                    await batch.commit();
+                    console.log('Firebase shame records cleared');
+                } catch (error) {
+                    console.error('Firebase clear error:', error);
+                }
+
                 renderShameList();
             }
         }

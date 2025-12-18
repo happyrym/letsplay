@@ -20,6 +20,9 @@ const AbuserDetector = {
         shameList.push(abuser);
         localStorage.setItem(this.SHAME_KEY, JSON.stringify(shameList));
 
+        // Firebase에 저장
+        this.saveToFirebase(abuser);
+
         // 알러트 효과!
         this.playShameAlert();
         this.showShameOverlay(abuser);
@@ -28,6 +31,21 @@ const AbuserDetector = {
         console.log('%cYou have been added to the Wall of Shame!', 'color: red; font-size: 16px;');
 
         return abuser;
+    },
+
+    // Firebase에 어뷰저 저장
+    async saveToFirebase(abuser) {
+        try {
+            if (typeof db !== 'undefined' && typeof firebase !== 'undefined') {
+                await db.collection('wall_of_shame').add({
+                    ...abuser,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('Abuser saved to Firebase');
+            }
+        } catch (error) {
+            console.error('Failed to save abuser to Firebase:', error);
+        }
     },
 
     // 알러트 사운드 (3초)
