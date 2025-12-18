@@ -341,81 +341,46 @@ const AbuserDetector = {
         return { valid: true };
     },
 
-    // 점수 검증
+    // 점수 검증 (파티용으로 기본 체크만)
     validateScore(score, game, maxScore) {
-        const validations = [];
-
-        // 1. 불가능한 점수 체크
+        // 1. 불가능한 점수 체크 (최대 점수 초과)
         if (score > maxScore) {
-            validations.push({
+            return {
                 valid: false,
                 reason: 'impossible_score',
                 detail: `Score ${score} exceeds max ${maxScore}`
-            });
+            };
         }
 
         // 2. 음수 점수 체크
         if (score < 0) {
-            validations.push({
+            return {
                 valid: false,
                 reason: 'impossible_score',
                 detail: `Negative score: ${score}`
-            });
+            };
         }
 
         // 3. 게임 시작 여부 체크
         if (!this.gameState.started) {
-            validations.push({
+            return {
                 valid: false,
                 reason: 'no_gameplay',
                 detail: 'Score submitted without starting game'
-            });
+            };
         }
 
-        // 4. 게임 플레이 시간 체크 (최소 1초)
+        // 4. 최소 플레이 시간 (0.5초) - 스피드핵 방지
         const playTime = Date.now() - this.gameState.startTime;
-        if (playTime < 1000 && this.gameState.started) {
-            validations.push({
+        if (playTime < 500 && this.gameState.started) {
+            return {
                 valid: false,
                 reason: 'speed_hack',
                 detail: `Game completed in ${playTime}ms`
-            });
+            };
         }
 
-        // 5. 인터랙션 체크 (최소 1회)
-        if (this.gameState.interactions < 1 && this.gameState.started) {
-            validations.push({
-                valid: false,
-                reason: 'no_gameplay',
-                detail: 'No interactions recorded'
-            });
-        }
-
-        // 6. 터치 좌표 분산 체크 (항상 같은 위치면 봇)
-        const touchVariance = this.calculateTouchVariance();
-        if (!touchVariance.valid) {
-            validations.push(touchVariance);
-        }
-
-        // 7. 드래그 궤적 직선도 체크 (완벽한 직선이면 봇)
-        const dragLinearity = this.analyzeDragLinearity();
-        if (!dragLinearity.valid) {
-            validations.push(dragLinearity);
-        }
-
-        // 8. 가상 터치 감지 (radiusX/Y가 항상 0이면 봇)
-        const virtualTouch = this.detectVirtualTouch();
-        if (!virtualTouch.valid) {
-            validations.push(virtualTouch);
-        }
-
-        // 9. 다트 착탄 위치 동일 검사
-        const identicalPositions = this.checkIdenticalDartPositions();
-        if (!identicalPositions.valid) {
-            validations.push(identicalPositions);
-        }
-
-        return validations.length === 0 ? { valid: true } : validations[0];
+        return { valid: true };
     }
 };
 
