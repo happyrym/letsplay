@@ -305,6 +305,11 @@
 <body>
     <canvas id="gameCanvas"></canvas>
 
+    <!-- TEST MODE Indicator -->
+    <div id="testModeIndicator" style="display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%); background: #e74c3c; color: white; padding: 5px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; z-index: 9999; box-shadow: 0 2px 10px rgba(231,76,60,0.5);">
+        🧪 TEST MODE
+    </div>
+
     <!-- Help Dialog -->
     <div id="helpOverlay" class="help-overlay hidden">
         <div class="help-dialog">
@@ -353,7 +358,7 @@
         </div>
         <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0.8; margin-top: 20px;">
             <span style="font-size: 12px; color: rgba(255,255,255,0.6);">Made with 🤖 by Eden.ryu & Claude</span>
-            <img src="logo.svg" alt="Buzzvi" style="height: 18px; opacity: 0.8;">
+            <img src="logo.svg" alt="Buzzvi" style="height: 28px; opacity: 0.8; cursor: pointer;" onclick="toggleTestMode()">
         </div>
     </div>
 
@@ -384,9 +389,41 @@
         const MAX_DARTS = 3;
         const PERFECT_SCORE = 180;
 
-        // TODO: 배포 전 false로 변경!
-        const TEST_MODE = true;
+        // TEST_MODE: 로고 10번 탭으로 활성화
+        let TEST_MODE = false;
         const TEST_SCORE = 180;  // 테스트용 점수 (180 또는 150)
+        let logoTapCount = 0;
+        let lastLogoTapTime = 0;
+
+        function getCollectionName() {
+            return TEST_MODE ? 'dart_scores_test' : 'dart_scores';
+        }
+
+        function toggleTestMode() {
+            const now = Date.now();
+            if (now - lastLogoTapTime > 3000) {
+                logoTapCount = 0;
+            }
+            logoTapCount++;
+            lastLogoTapTime = now;
+
+            if (logoTapCount >= 10) {
+                TEST_MODE = !TEST_MODE;
+                logoTapCount = 0;
+                updateTestModeIndicator();
+                // 리더보드 다시 로드
+                setupLeaderboard();
+            }
+        }
+
+        function updateTestModeIndicator() {
+            const indicator = document.getElementById('testModeIndicator');
+            if (TEST_MODE) {
+                indicator.style.display = 'block';
+            } else {
+                indicator.style.display = 'none';
+            }
+        }
 
         // Colors
         const DART_RED = '#E63946';
@@ -443,8 +480,15 @@
         let nameInputTemp = '';
 
         // Firebase 실시간 리더보드 구독
-        function subscribeToLeaderboard() {
-            db.collection('dart_scores')
+        let leaderboardUnsubscribe = null;
+
+        function setupLeaderboard() {
+            // 기존 구독 해제
+            if (leaderboardUnsubscribe) {
+                leaderboardUnsubscribe();
+            }
+            // 새 컬렉션 구독
+            leaderboardUnsubscribe = db.collection(getCollectionName())
                 .orderBy('score', 'desc')
                 .limit(10)
                 .onSnapshot((snapshot) => {
@@ -461,7 +505,7 @@
         }
 
         // 초기화 시 구독 시작
-        subscribeToLeaderboard();
+        setupLeaderboard();
 
         // Keyboard setup
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -577,12 +621,13 @@
                 // Firebase에 저장 (기본점수 우선 정렬을 위해 소수점으로 저장)
                 // 예: 180점 + 보너스 50 = 180.050 (보너스를 3자리로 패딩)
                 const scoreForDb = totalScore + (bonusScore / 1000);
-                await db.collection('dart_scores').add({
+                await db.collection(getCollectionName()).add({
                     name: playerName,
                     score: scoreForDb,
                     timestamp: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                document.getElementById('saveStatus').innerHTML = `<p style="color:#27ae60">✅ ${playerName}님 점수 저장됨!</p>`;
+                const testLabel = TEST_MODE ? ' (TEST)' : '';
+                document.getElementById('saveStatus').innerHTML = `<p style="color:#27ae60">✅ ${playerName}님 점수 저장됨!${testLabel}</p>`;
             } catch (error) {
                 console.error('Firebase save error:', error);
                 // fallback to localStorage
