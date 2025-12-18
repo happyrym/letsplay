@@ -387,8 +387,16 @@
         </div>
     </div>
 
+    <!-- Tutorial Overlay (첫 진입 시 연습) -->
+    <div id="tutorialOverlay" class="overlay" style="background: rgba(0,0,0,0.85); justify-content: flex-start; padding-top: 50px;">
+        <h1 style="font-size: 1.8rem;">👆 먼저 연습해보세요!</h1>
+        <p style="font-size: 1rem; margin-bottom: 10px;">다트를 잡고 위로 스와이프</p>
+        <p style="font-size: 0.85rem; color: rgba(255,255,255,0.5);">던지면 바로 게임 시작!</p>
+        <button class="btn btn-secondary" onclick="skipTutorial()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 0.85rem;">SKIP →</button>
+    </div>
+
     <!-- Name Input Overlay (첫 진입 시) -->
-    <div id="nameOverlay" class="overlay">
+    <div id="nameOverlay" class="overlay hidden">
         <h1>🎯 Dart Game</h1>
         <p>Enter your name to start!</p>
         <p style="font-size: 0.8rem; color: rgba(255,255,255,0.4); margin-top: -20px; margin-bottom: 10px;">Made by Eden.ryu</p>
@@ -520,6 +528,7 @@
 
         // Game state
         let gamePhase = 'ready'; // ready, playing, throwing, bonus, result
+        let isTutorial = true;  // 튜토리얼 모드
         let timeRemaining = GAME_TIME;
         let totalScore = 0;
         let dartsThrown = 0;
@@ -666,14 +675,40 @@
             document.getElementById('nameOverlay').classList.remove('hidden');
         }
 
-        // 초기화: 이름이 있으면 바로 게임 화면으로
+        // 초기화: 이름이 있으면 바로 게임 화면으로, 없으면 튜토리얼
         function initGame() {
             setupNameKeyboard();
             if (playerName) {
+                // 이름이 저장되어 있으면 튜토리얼 스킵
+                isTutorial = false;
+                document.getElementById('tutorialOverlay').classList.add('hidden');
                 document.getElementById('nameOverlay').classList.add('hidden');
                 document.getElementById('readyOverlay').classList.remove('hidden');
                 document.getElementById('playerNameDisplay').textContent = playerName;
+            } else {
+                // 튜토리얼 모드로 시작
+                isTutorial = true;
+                gamePhase = 'playing';
+                document.getElementById('tutorialOverlay').classList.remove('hidden');
             }
+        }
+
+        // 튜토리얼 스킵
+        function skipTutorial() {
+            isTutorial = false;
+            gamePhase = 'ready';
+            document.getElementById('tutorialOverlay').classList.add('hidden');
+            document.getElementById('nameOverlay').classList.remove('hidden');
+        }
+
+        // 튜토리얼 완료 (다트 1개 던짐)
+        function completeTutorial() {
+            isTutorial = false;
+            gamePhase = 'ready';
+            thrownDarts = [];
+            dartsThrown = 0;
+            document.getElementById('tutorialOverlay').classList.add('hidden');
+            document.getElementById('nameOverlay').classList.remove('hidden');
         }
 
         async function autoSaveScore() {
@@ -1209,32 +1244,40 @@
                 small: Math.round(height * 0.025)
             };
 
-            // Timer (소수점 2자리)
-            ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
-            ctx.font = `bold ${fontSize.timer}px Arial`;
-            ctx.textAlign = 'left';
-            ctx.fillText(timeRemaining.toFixed(2), 20, fontSize.timer);
-
-            // 보너스 라운드 표시
-            if (isInBonusRound) {
-                ctx.fillStyle = '#FFD700';
-                ctx.font = `bold ${fontSize.small}px Arial`;
-                ctx.fillText('🔥 BONUS!', 20, fontSize.timer + fontSize.score);
-
-                // 보너스 점수 표시 (180.xxx 형태)
-                ctx.font = `bold ${fontSize.score}px Arial`;
-                const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
-                ctx.fillText(`${displayScore}`, 20, fontSize.timer + fontSize.score * 2);
+            // 튜토리얼 모드면 연습 표시
+            if (isTutorial) {
+                ctx.fillStyle = '#4CAF50';
+                ctx.font = `bold ${fontSize.timer}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.fillText('PRACTICE', 20, fontSize.timer);
             } else {
-                // Score
-                ctx.fillStyle = '#fff';
-                ctx.font = `bold ${fontSize.score}px Arial`;
-                ctx.fillText(`${totalScore}`, 20, fontSize.timer + fontSize.score);
+                // Timer (소수점 2자리)
+                ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
+                ctx.font = `bold ${fontSize.timer}px Arial`;
+                ctx.textAlign = 'left';
+                ctx.fillText(timeRemaining.toFixed(2), 20, fontSize.timer);
 
-                // Darts remaining
-                ctx.font = `${fontSize.small}px Arial`;
-                const dartsLeft = MAX_DARTS - dartsThrown;
-                ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 20, fontSize.timer + fontSize.score * 2);
+                // 보너스 라운드 표시
+                if (isInBonusRound) {
+                    ctx.fillStyle = '#FFD700';
+                    ctx.font = `bold ${fontSize.small}px Arial`;
+                    ctx.fillText('🔥 BONUS!', 20, fontSize.timer + fontSize.score);
+
+                    // 보너스 점수 표시 (180.xxx 형태)
+                    ctx.font = `bold ${fontSize.score}px Arial`;
+                    const displayScore = bonusScore > 0 ? `${totalScore}.${bonusScore}` : `${totalScore}`;
+                    ctx.fillText(`${displayScore}`, 20, fontSize.timer + fontSize.score * 2);
+                } else {
+                    // Score
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `bold ${fontSize.score}px Arial`;
+                    ctx.fillText(`${totalScore}`, 20, fontSize.timer + fontSize.score);
+
+                    // Darts remaining
+                    ctx.font = `${fontSize.small}px Arial`;
+                    const dartsLeft = MAX_DARTS - dartsThrown;
+                    ctx.fillText('🎯'.repeat(dartsLeft) + '✅'.repeat(dartsThrown), 20, fontSize.timer + fontSize.score * 2);
+                }
             }
 
             // Swipe guide
@@ -1308,6 +1351,14 @@
                         score,
                         isBonus: isInBonusRound
                     });
+
+                    // 튜토리얼 모드면 완료 처리
+                    if (isTutorial) {
+                        createParticles(flyingDart.targetX, flyingDart.targetY, score);
+                        flyingDart = null;
+                        setTimeout(completeTutorial, 800);
+                        return;
+                    }
 
                     // 보너스 라운드면 보너스 점수에 누적, 아니면 기본 점수에 누적
                     if (isInBonusRound) {
