@@ -388,11 +388,11 @@
     </div>
 
     <!-- Tutorial Overlay (첫 진입 시 연습) -->
-    <div id="tutorialOverlay" class="overlay" style="background: rgba(0,0,0,0.85); justify-content: flex-start; padding-top: 50px;">
+    <div id="tutorialOverlay" class="overlay" style="background: rgba(0,0,0,0.85); justify-content: flex-start; padding-top: 50px; pointer-events: none;">
         <h1 style="font-size: 1.8rem;">👆 먼저 연습해보세요!</h1>
         <p style="font-size: 1rem; margin-bottom: 10px;">다트를 잡고 위로 스와이프</p>
         <p style="font-size: 0.85rem; color: rgba(255,255,255,0.5);">던지면 바로 게임 시작!</p>
-        <button class="btn btn-secondary" onclick="skipTutorial()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 0.85rem;">SKIP →</button>
+        <button class="btn btn-secondary" onclick="skipTutorial()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 0.85rem; pointer-events: auto;">SKIP →</button>
     </div>
 
     <!-- Name Input Overlay (첫 진입 시) -->
