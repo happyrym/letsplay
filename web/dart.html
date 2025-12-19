@@ -68,16 +68,9 @@
             display: none !important;
         }
 
-        /* Tutorial overlay - allow touch through to canvas */
+        /* Tutorial overlay - SKIP 버튼만 별도 처리 */
         #tutorialOverlay {
-            pointer-events: none !important;
-            touch-action: none !important;
-        }
-        #tutorialOverlay * {
-            pointer-events: none !important;
-        }
-        #tutorialOverlay button {
-            pointer-events: auto !important;
+            cursor: pointer;
         }
 
         .overlay h1 {
@@ -1666,6 +1659,16 @@
         canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
         canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
         canvas.addEventListener('touchend', handlePointerUp);
+
+        // 튜토리얼 오버레이 터치 시 바로 게임 시작
+        const tutorialOverlay = document.getElementById('tutorialOverlay');
+        tutorialOverlay.addEventListener('touchstart', (e) => {
+            if (isTutorial && !tutorialGameStarted) {
+                tutorialOverlay.classList.add('hidden');
+                tutorialGameStarted = true;
+                startGame();
+            }
+        }, { passive: true });
 
         window.addEventListener('resize', resize);
 
