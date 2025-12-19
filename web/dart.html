@@ -677,8 +677,7 @@
 
         // Game state
         let gamePhase = 'ready'; // ready, playing, throwing, bonus, result
-        let isTutorial = true;  // 튜토리얼 모드
-        let tutorialGameStarted = false;  // 튜토리얼 게임 시작 여부
+        let tutorialPhase = 'intro';  // none: 일반모드, intro: 튜토리얼 UI, playing: 튜토리얼 게임중
         let timeRemaining = GAME_TIME;
         let totalScore = 0;
         let dartsThrown = 0;
@@ -811,9 +810,8 @@
                 document.getElementById('nameOverlay').classList.add('hidden');
 
                 // 튜토리얼 완료: 점수 저장 없이 게임 준비 화면으로
-                if (isTutorial) {
-                    isTutorial = false;
-                    tutorialGameStarted = false;
+                if (tutorialPhase !== 'none') {
+                    tutorialPhase = 'none';
                     gamePhase = 'ready';
                     // 게임 상태 초기화 (튜토리얼 점수 버림)
                     totalScore = 0;
@@ -853,14 +851,14 @@
             setupNameKeyboard();
             if (playerName) {
                 // 이름이 저장되어 있으면 튜토리얼 스킵
-                isTutorial = false;
+                tutorialPhase = 'none';
                 document.getElementById('tutorialOverlay').classList.add('hidden');
                 document.getElementById('nameOverlay').classList.add('hidden');
                 document.getElementById('readyOverlay').classList.remove('hidden');
                 document.getElementById('playerNameDisplay').textContent = playerName;
             } else {
                 // 튜토리얼 모드로 시작
-                isTutorial = true;
+                tutorialPhase = 'intro';
                 gamePhase = 'playing';
                 currentTutorialStep = 1;
                 document.getElementById('tutorialOverlay').classList.remove('hidden');
@@ -871,8 +869,7 @@
 
         // 튜토리얼 스킵
         function skipTutorial() {
-            isTutorial = false;
-            tutorialGameStarted = false;
+            tutorialPhase = 'none';
             gamePhase = 'ready';
             clearTutorialHighlights();
             document.getElementById('tutorialOverlay').classList.add('hidden');
@@ -932,7 +929,7 @@
         function startTutorialGame() {
             clearTutorialHighlights();
             document.getElementById('tutorialOverlay').classList.add('hidden');
-            tutorialGameStarted = true;
+            tutorialPhase = 'playing';
             startGame();
         }
 
@@ -1070,6 +1067,12 @@
         }
 
         function startGame() {
+            // 이전 타이머가 있으면 정지 (중복 실행 방지)
+            if (timerInterval) {
+                cancelAnimationFrame(timerInterval);
+                timerInterval = null;
+            }
+
             gamePhase = 'playing';
             timeRemaining = GAME_TIME;
             totalScore = 0;
@@ -1122,11 +1125,15 @@
         }
 
         function endGame() {
+            // 이미 결과 화면이면 중복 호출 방지
+            if (gamePhase === 'result') return;
+
             gamePhase = 'result';
             cancelAnimationFrame(timerInterval);
+            timerInterval = null;
 
             // 튜토리얼 모드면 이름 입력 화면으로
-            if (isTutorial) {
+            if (tutorialPhase === 'playing') {
                 document.getElementById('nameOverlay').classList.remove('hidden');
                 return;
             }
@@ -1554,7 +1561,7 @@
             }
 
             // 튜토리얼 모드 (게임 시작 전)면 연습 표시
-            if (isTutorial && !tutorialGameStarted) {
+            if (tutorialPhase === 'intro') {
                 ctx.fillStyle = '#4CAF50';
                 ctx.font = `bold ${fontSize.timer}px Arial`;
                 ctx.textAlign = 'left';
