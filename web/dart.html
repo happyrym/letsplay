@@ -359,6 +359,7 @@
         .sensitivity-slider.tutorial-highlight {
             animation: sliderPulse 1s ease-in-out infinite;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            z-index: 150;
         }
 
         @keyframes sliderPulse {
@@ -534,6 +535,14 @@
 
     <!-- Tutorial Highlight Pointer -->
     <div id="tutorialPointer" class="tutorial-pointer hidden"></div>
+
+    <!-- Tutorial Complete Overlay -->
+    <div id="tutorialCompleteOverlay" class="overlay hidden" style="justify-content: center;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 20px;">🎉 연습 완료!</h1>
+        <p style="font-size: 1.1rem; margin-bottom: 10px;">이제 게임 방법을 알았어요!</p>
+        <p style="font-size: 0.9rem; color: rgba(255,255,255,0.6); margin-bottom: 30px;">이름을 입력하고 진짜 게임을 시작하세요</p>
+        <button class="btn btn-primary" onclick="goToNameInput()" style="padding: 15px 50px; font-size: 1.2rem;">이름 입력하기 →</button>
+    </div>
 
     <!-- Name Input Overlay (첫 진입 시) -->
     <div id="nameOverlay" class="overlay hidden">
@@ -876,6 +885,12 @@
             document.getElementById('nameOverlay').classList.remove('hidden');
         }
 
+        // 튜토리얼 완료 후 이름 입력으로
+        function goToNameInput() {
+            document.getElementById('tutorialCompleteOverlay').classList.add('hidden');
+            document.getElementById('nameOverlay').classList.remove('hidden');
+        }
+
         // 튜토리얼 단계 이동
         let currentTutorialStep = 1;
 
@@ -1132,9 +1147,9 @@
             cancelAnimationFrame(timerInterval);
             timerInterval = null;
 
-            // 튜토리얼 모드면 이름 입력 화면으로
+            // 튜토리얼 모드면 완료 화면으로
             if (tutorialPhase === 'playing') {
-                document.getElementById('nameOverlay').classList.remove('hidden');
+                document.getElementById('tutorialCompleteOverlay').classList.remove('hidden');
                 return;
             }
 
@@ -1560,12 +1575,22 @@
                 ctx.fillText(`👑 ${leaderboard[0].name} 👑`, width / 2, fontSize.small + 10);
             }
 
-            // 튜토리얼 모드 (게임 시작 전)면 연습 표시
+            // 튜토리얼 모드 (게임 시작 전)면 연습용 UI 표시
             if (tutorialPhase === 'intro') {
-                ctx.fillStyle = '#4CAF50';
+                // Timer (10초 고정)
+                ctx.fillStyle = '#f39c12';
                 ctx.font = `bold ${fontSize.timer}px Arial`;
                 ctx.textAlign = 'left';
-                ctx.fillText('PRACTICE', 20, fontSize.timer);
+                ctx.fillText('10.00', 20, fontSize.timer);
+
+                // Score (0점)
+                ctx.fillStyle = '#fff';
+                ctx.font = `bold ${fontSize.score}px Arial`;
+                ctx.fillText('0', 20, fontSize.timer + fontSize.score);
+
+                // Darts (3개)
+                ctx.font = `${fontSize.small}px Arial`;
+                ctx.fillText('🎯🎯🎯', 20, fontSize.timer + fontSize.score * 2);
             } else {
                 // Timer (소수점 2자리)
                 ctx.fillStyle = timeRemaining <= 3 ? '#e74c3c' : '#f39c12';
