@@ -550,6 +550,7 @@
         // Game state
         let gamePhase = 'ready'; // ready, playing, throwing, bonus, result
         let isTutorial = true;  // 튜토리얼 모드
+        let tutorialGameStarted = false;  // 튜토리얼 게임 시작 여부
         let timeRemaining = GAME_TIME;
         let totalScore = 0;
         let dartsThrown = 0;
@@ -680,6 +681,15 @@
                 playerName = nameInputTemp;
                 localStorage.setItem('dartPlayerName', playerName);
                 document.getElementById('nameOverlay').classList.add('hidden');
+
+                // 튜토리얼 완료: 점수 저장 및 결과 표시
+                if (isTutorial) {
+                    isTutorial = false;
+                    tutorialGameStarted = false;
+                    showResult();
+                    return;
+                }
+
                 document.getElementById('readyOverlay').classList.remove('hidden');
                 document.getElementById('playerNameDisplay').textContent = playerName;
             }
@@ -727,17 +737,8 @@
         // 튜토리얼 스킵
         function skipTutorial() {
             isTutorial = false;
+            tutorialGameStarted = false;
             gamePhase = 'ready';
-            document.getElementById('tutorialOverlay').classList.add('hidden');
-            document.getElementById('nameOverlay').classList.remove('hidden');
-        }
-
-        // 튜토리얼 완료 (다트 1개 던짐)
-        function completeTutorial() {
-            isTutorial = false;
-            gamePhase = 'ready';
-            thrownDarts = [];
-            dartsThrown = 0;
             document.getElementById('tutorialOverlay').classList.add('hidden');
             document.getElementById('nameOverlay').classList.remove('hidden');
         }
@@ -930,6 +931,13 @@
         function endGame() {
             gamePhase = 'result';
             cancelAnimationFrame(timerInterval);
+
+            // 튜토리얼 모드면 이름 입력 화면으로
+            if (isTutorial) {
+                document.getElementById('nameOverlay').classList.remove('hidden');
+                return;
+            }
+
             showResult();
         }
 
@@ -1352,8 +1360,8 @@
                 ctx.fillText(`👑 ${leaderboard[0].name} 👑`, width / 2, fontSize.small + 10);
             }
 
-            // 튜토리얼 모드면 연습 표시
-            if (isTutorial) {
+            // 튜토리얼 모드 (게임 시작 전)면 연습 표시
+            if (isTutorial && !tutorialGameStarted) {
                 ctx.fillStyle = '#4CAF50';
                 ctx.font = `bold ${fontSize.timer}px Arial`;
                 ctx.textAlign = 'left';
@@ -1466,14 +1474,6 @@
                         score,
                         isBonus: isInBonusRound
                     });
-
-                    // 튜토리얼 모드면 완료 처리
-                    if (isTutorial) {
-                        createParticles(flyingDart.targetX, flyingDart.targetY, score);
-                        flyingDart = null;
-                        setTimeout(completeTutorial, 800);
-                        return;
-                    }
 
                     // 보너스 라운드면 보너스 점수에 누적, 아니면 기본 점수에 누적
                     if (isInBonusRound) {
@@ -1589,6 +1589,13 @@
         let currentDragPath = [];
 
         function handlePointerDown(e) {
+            // 튜토리얼 모드에서 첫 터치: overlay 숨기고 게임 시작
+            if (isTutorial && !tutorialGameStarted) {
+                document.getElementById('tutorialOverlay').classList.add('hidden');
+                tutorialGameStarted = true;
+                startGame();
+            }
+
             // 보너스 라운드면 다트 수 제한 없음
             const canGrab = isInBonusRound
                 ? (gamePhase === 'playing' && !flyingDart)
