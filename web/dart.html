@@ -68,10 +68,6 @@
             display: none !important;
         }
 
-        /* Tutorial overlay - SKIP 버튼만 별도 처리 */
-        #tutorialOverlay {
-            cursor: pointer;
-        }
 
         .overlay h1 {
             font-size: 2rem;
@@ -358,6 +354,127 @@
             font-weight: bold;
             color: #FFD700;
         }
+
+        /* Tutorial - sensitivity slider highlight */
+        .sensitivity-slider.tutorial-highlight {
+            animation: sliderPulse 1s ease-in-out infinite;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+
+        @keyframes sliderPulse {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+                transform: translateY(-50%) scale(1);
+            }
+            50% {
+                box-shadow: 0 0 25px rgba(255, 215, 0, 1);
+                transform: translateY(-50%) scale(1.05);
+            }
+        }
+
+        .power-tooltip {
+            position: fixed;
+            left: 70px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 215, 0, 0.95);
+            color: #000;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            z-index: 150;
+            white-space: nowrap;
+            animation: tooltipBounce 0.5s ease-in-out infinite alternate;
+        }
+
+        .power-tooltip::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 8px solid transparent;
+            border-right-color: rgba(255, 215, 0, 0.95);
+            border-left: none;
+        }
+
+        @keyframes tooltipBounce {
+            from { transform: translateY(-50%) translateX(0); }
+            to { transform: translateY(-50%) translateX(5px); }
+        }
+
+        /* Tutorial Steps */
+        .tutorial-step {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 15px;
+            margin: 0 20px;
+        }
+
+        .tutorial-pointer {
+            position: fixed;
+            width: 60px;
+            height: 60px;
+            border: 3px solid #FFD700;
+            border-radius: 50%;
+            z-index: 200;
+            pointer-events: none;
+            animation: pointerPulse 1s ease-in-out infinite;
+        }
+
+        .tutorial-pointer::after {
+            content: '👆';
+            position: absolute;
+            font-size: 30px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @keyframes pointerPulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+            }
+            50% {
+                transform: scale(1.1);
+                box-shadow: 0 0 0 15px rgba(255, 215, 0, 0);
+            }
+        }
+
+        /* Highlight for UI elements during tutorial */
+        .tutorial-highlight-timer {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            width: 100px;
+            height: 50px;
+            border: 3px solid #FFD700;
+            border-radius: 10px;
+            z-index: 150;
+            pointer-events: none;
+            animation: highlightPulse 1s ease-in-out infinite;
+        }
+
+        .tutorial-highlight-darts {
+            position: fixed;
+            top: 60px;
+            left: 10px;
+            width: 100px;
+            height: 40px;
+            border: 3px solid #FFD700;
+            border-radius: 10px;
+            z-index: 150;
+            pointer-events: none;
+            animation: highlightPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes highlightPulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+            50% { box-shadow: 0 0 25px rgba(255, 215, 0, 1); }
+        }
     </style>
 </head>
 <body>
@@ -392,13 +509,31 @@
         </div>
     </div>
 
-    <!-- Tutorial Overlay (첫 진입 시 연습) -->
-    <div id="tutorialOverlay" class="overlay" style="background: rgba(0,0,0,0.85); justify-content: flex-start; padding-top: 50px;">
-        <h1 style="font-size: 1.8rem;">👆 먼저 연습해보세요!</h1>
-        <p style="font-size: 1rem; margin-bottom: 10px;">다트를 잡고 위로 스와이프</p>
-        <p style="font-size: 0.85rem; color: rgba(255,255,255,0.5);">던지면 바로 게임 시작!</p>
+    <!-- Tutorial Overlay (단계별 튜토리얼) -->
+    <div id="tutorialOverlay" class="overlay" style="background: rgba(0,0,0,0.7); justify-content: flex-end; padding-bottom: 80px;">
+        <!-- Step 1: Power 조절 -->
+        <div id="tutorialStep1" class="tutorial-step">
+            <h2 style="font-size: 1.3rem; margin-bottom: 10px;">💪 던지는 세기</h2>
+            <p style="font-size: 0.95rem;">왼쪽 슬라이더로 던지는 세기를 조절해요!</p>
+            <button class="btn btn-primary" onclick="nextTutorialStep(2)" style="margin-top: 20px; padding: 12px 35px;">다음 →</button>
+        </div>
+        <!-- Step 2: 다트 개수 -->
+        <div id="tutorialStep2" class="tutorial-step hidden">
+            <h2 style="font-size: 1.3rem; margin-bottom: 10px;">🎯 남은 다트</h2>
+            <p style="font-size: 0.95rem;">왼쪽 상단에서 남은 다트 개수를 확인해요!</p>
+            <button class="btn btn-primary" onclick="nextTutorialStep(3)" style="margin-top: 20px; padding: 12px 35px;">다음 →</button>
+        </div>
+        <!-- Step 3: 시간 -->
+        <div id="tutorialStep3" class="tutorial-step hidden">
+            <h2 style="font-size: 1.3rem; margin-bottom: 10px;">⏱️ 제한 시간</h2>
+            <p style="font-size: 0.95rem;">10초 안에 3개의 다트를 던지세요!</p>
+            <button class="btn btn-primary" onclick="startTutorialGame()" style="margin-top: 20px; padding: 12px 35px;">🎮 시작!</button>
+        </div>
         <button class="btn btn-secondary" onclick="skipTutorial()" style="position: absolute; top: 20px; right: 20px; padding: 8px 16px; font-size: 0.85rem;">SKIP →</button>
     </div>
+
+    <!-- Tutorial Highlight Pointer -->
+    <div id="tutorialPointer" class="tutorial-pointer hidden"></div>
 
     <!-- Name Input Overlay (첫 진입 시) -->
     <div id="nameOverlay" class="overlay hidden">
@@ -723,7 +858,10 @@
                 // 튜토리얼 모드로 시작
                 isTutorial = true;
                 gamePhase = 'playing';
+                currentTutorialStep = 1;
                 document.getElementById('tutorialOverlay').classList.remove('hidden');
+                // 첫 단계: power 슬라이더 하이라이트
+                document.getElementById('sensitivitySlider').classList.add('tutorial-highlight');
             }
         }
 
@@ -732,8 +870,66 @@
             isTutorial = false;
             tutorialGameStarted = false;
             gamePhase = 'ready';
+            clearTutorialHighlights();
             document.getElementById('tutorialOverlay').classList.add('hidden');
             document.getElementById('nameOverlay').classList.remove('hidden');
+        }
+
+        // 튜토리얼 단계 이동
+        let currentTutorialStep = 1;
+
+        function nextTutorialStep(step) {
+            currentTutorialStep = step;
+
+            // 모든 단계 숨기기
+            document.getElementById('tutorialStep1').classList.add('hidden');
+            document.getElementById('tutorialStep2').classList.add('hidden');
+            document.getElementById('tutorialStep3').classList.add('hidden');
+
+            // 현재 단계 표시
+            document.getElementById(`tutorialStep${step}`).classList.remove('hidden');
+
+            // 이전 하이라이트 제거
+            clearTutorialHighlights();
+
+            // 단계별 하이라이트
+            if (step === 1) {
+                document.getElementById('sensitivitySlider').classList.add('tutorial-highlight');
+            } else if (step === 2) {
+                showDartsHighlight();
+            } else if (step === 3) {
+                showTimerHighlight();
+            }
+        }
+
+        function showDartsHighlight() {
+            const highlight = document.createElement('div');
+            highlight.className = 'tutorial-highlight-darts';
+            highlight.id = 'tutorialDartsHighlight';
+            document.body.appendChild(highlight);
+        }
+
+        function showTimerHighlight() {
+            const highlight = document.createElement('div');
+            highlight.className = 'tutorial-highlight-timer';
+            highlight.id = 'tutorialTimerHighlight';
+            document.body.appendChild(highlight);
+        }
+
+        function clearTutorialHighlights() {
+            document.getElementById('sensitivitySlider').classList.remove('tutorial-highlight');
+            const dartsHighlight = document.getElementById('tutorialDartsHighlight');
+            const timerHighlight = document.getElementById('tutorialTimerHighlight');
+            if (dartsHighlight) dartsHighlight.remove();
+            if (timerHighlight) timerHighlight.remove();
+        }
+
+        // 튜토리얼 게임 시작
+        function startTutorialGame() {
+            clearTutorialHighlights();
+            document.getElementById('tutorialOverlay').classList.add('hidden');
+            tutorialGameStarted = true;
+            startGame();
         }
 
         // 더미 데이터 생성 (어뷰징 방지용)
@@ -1582,13 +1778,6 @@
         let currentDragPath = [];
 
         function handlePointerDown(e) {
-            // 튜토리얼 모드에서 첫 터치: overlay 숨기고 게임 시작
-            if (isTutorial && !tutorialGameStarted) {
-                document.getElementById('tutorialOverlay').classList.add('hidden');
-                tutorialGameStarted = true;
-                startGame();
-            }
-
             // 보너스 라운드면 다트 수 제한 없음
             const canGrab = isInBonusRound
                 ? (gamePhase === 'playing' && !flyingDart)
@@ -1659,16 +1848,6 @@
         canvas.addEventListener('touchstart', handlePointerDown, { passive: false });
         canvas.addEventListener('touchmove', handlePointerMove, { passive: false });
         canvas.addEventListener('touchend', handlePointerUp);
-
-        // 튜토리얼 오버레이 터치 시 바로 게임 시작
-        const tutorialOverlay = document.getElementById('tutorialOverlay');
-        tutorialOverlay.addEventListener('touchstart', (e) => {
-            if (isTutorial && !tutorialGameStarted) {
-                tutorialOverlay.classList.add('hidden');
-                tutorialGameStarted = true;
-                startGame();
-            }
-        }, { passive: true });
 
         window.addEventListener('resize', resize);
 
