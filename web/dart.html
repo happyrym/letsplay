@@ -810,12 +810,16 @@
                 localStorage.setItem('dartPlayerName', playerName);
                 document.getElementById('nameOverlay').classList.add('hidden');
 
-                // 튜토리얼 완료: 점수 저장 및 결과 표시
+                // 튜토리얼 완료: 점수 저장 없이 게임 준비 화면으로
                 if (isTutorial) {
                     isTutorial = false;
                     tutorialGameStarted = false;
-                    showResult();
-                    return;
+                    gamePhase = 'ready';
+                    // 게임 상태 초기화 (튜토리얼 점수 버림)
+                    totalScore = 0;
+                    bonusScore = 0;
+                    thrownDarts = [];
+                    dartsThrown = 0;
                 }
 
                 document.getElementById('readyOverlay').classList.remove('hidden');
